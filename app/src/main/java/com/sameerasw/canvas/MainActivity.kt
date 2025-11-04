@@ -34,6 +34,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import com.sameerasw.canvas.model.ToolType
+import com.sameerasw.canvas.ui.components.AboutDialog
 import com.sameerasw.canvas.ui.components.PenWidthOptionsPanel
 import com.sameerasw.canvas.ui.components.TextSizeOptionsPanel
 import com.sameerasw.canvas.ui.components.TextInputDialog
@@ -105,6 +106,8 @@ fun CanvasApp(viewModel: CanvasViewModel) {
     var selectedTextId by remember { mutableStateOf<Long?>(null) }
     // show confirmation when user taps Clear in top menu
     var showClearConfirm by remember { mutableStateOf(false) }
+    // show About dialog
+    var showAboutDialog by remember { mutableStateOf(false) }
 
     // Canvas viewport tracking (pixels)
     var canvasScale by remember { mutableStateOf(1f) }
@@ -219,7 +222,7 @@ fun CanvasApp(viewModel: CanvasViewModel) {
                     },
                     onAbout = {
                         topMenuOpen = false
-                        Toast.makeText(context, "About", Toast.LENGTH_SHORT).show()
+                        showAboutDialog = true
                     }
                 )
             }
@@ -246,6 +249,16 @@ fun CanvasApp(viewModel: CanvasViewModel) {
                     TextButton(onClick = { showClearConfirm = false }) {
                         Text("Cancel")
                     }
+                }
+            )
+        }
+
+        // About dialog
+        if (showAboutDialog) {
+            AboutDialog(
+                onDismissRequest = { showAboutDialog = false },
+                onToggleDeveloperMode = {
+                    Toast.makeText(context, "Developer mode toggled", Toast.LENGTH_SHORT).show()
                 }
             )
         }
