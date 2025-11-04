@@ -5,7 +5,12 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Box
@@ -46,8 +51,11 @@ import kotlin.math.abs
 import kotlin.random.Random
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -122,136 +130,166 @@ fun CanvasApp(viewModel: CanvasViewModel) {
             modifier = Modifier.fillMaxSize()
         )
 
-        // Secondary pen options toolbar (appears when pen icon tapped again)
-        if (showPenOptions) {
-            androidx.compose.foundation.layout.Column(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .offset(y = -FloatingToolbarDefaults.ScreenOffset - 96.dp)
-                    .zIndex(2f),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                // live preview circle centered above the slider
-                // make preview circle reasonable: penWidth is in world units, map to dp with a smaller multiplier
-                val circleSize = (penWidth * 1.5f).dp.coerceAtLeast(12.dp)
-                androidx.compose.foundation.layout.Box(
-                    modifier = Modifier.width(200.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    androidx.compose.material3.Surface(
-                        shape = androidx.compose.foundation.shape.CircleShape,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(circleSize)
-                    ) {}
-                }
-
-                // Slider to pick pen width
-                androidx.compose.material3.Slider(
-                    value = penWidth,
-                    onValueChange = { penWidth = it },
-                    // reduce max so preview and strokes stay reasonable on typical screens
-                    valueRange = 1f..48f,
-                    modifier = Modifier.width(240.dp)
-                )
-            }
-        }
-
-        // HorizontalFloatingToolbar at bottom center - top layer overlay
-        HorizontalFloatingToolbar(
+        // Bottom column that contains the secondary pen options and the main floating toolbar.
+        androidx.compose.foundation.layout.Column(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .offset(y = -FloatingToolbarDefaults.ScreenOffset)
+                .padding(bottom = 16.dp) // offset slightly from system gesture/navigation bar
                 .zIndex(1f),
-            expanded = expanded,
-            // two items on the left of the center
-            leadingContent = {
-                // Hand tool
-                IconButton(
-                    modifier = Modifier.width(if (expanded) 64.dp else 48.dp),
-                    onClick = { currentTool = ToolType.HAND }
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            // Secondary pen options toolbar (appears when pen icon tapped again)
+            AnimatedVisibility(
+                visible = showPenOptions,
+                enter = slideInVertically(initialOffsetY = { it }, animationSpec = tween(260)),
+                exit = slideOutVertically(targetOffsetY = { it }, animationSpec = tween(220)),
+            ) {
+                Surface(
+                    modifier = Modifier,
+                    shape = RoundedCornerShape(20.dp),
+                    color = MaterialTheme.colorScheme.surface,
                 ) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.rounded_back_hand_24),
-                        contentDescription = "Hand tool",
-                        tint = if (currentTool == ToolType.HAND) MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.width(if (expanded) 28.dp else 24.dp)
-                    )
-                }
-
-                // Pen tool: if tapped while already selected, toggle pen options
-                IconButton(
-                    modifier = Modifier.width(if (expanded) 64.dp else 48.dp),
-                    onClick = {
-                        if (currentTool == ToolType.PEN) {
-                            showPenOptions = !showPenOptions
-                        } else {
-                            currentTool = ToolType.PEN
-                            showPenOptions = false
+                    androidx.compose.foundation.layout.Column(
+                        modifier = Modifier
+                            .padding(12.dp)
+                            .width(280.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        // live preview circle centered above the slider
+                        val circleSize = (penWidth * 1.5f).dp.coerceAtLeast(10.dp).coerceAtMost(64.dp)
+                        androidx.compose.foundation.layout.Box(
+                            modifier = Modifier.width(200.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Surface(
+                                shape = androidx.compose.foundation.shape.CircleShape,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(circleSize)
+                            ) {}
                         }
-                    }
-                ) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.rounded_stylus_fountain_pen_24),
-                        contentDescription = "Pen tool",
-                        tint = if (currentTool == ToolType.PEN) MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.width(if (expanded) 28.dp else 24.dp)
-                    )
-                }
-            },
-            // center content remains the primary button
-            content = {
-                FilledIconButton(
-                    modifier = Modifier.width(if (expanded) 72.dp else 64.dp),
-                    onClick = { expanded = !expanded }
-                ) {
-                    Icon(
-                        painter = painterResource(
-                            id = if (expanded) R.drawable.rounded_gesture_24 else when (currentTool) {
-                                ToolType.HAND -> R.drawable.rounded_back_hand_24
-                                ToolType.PEN -> R.drawable.rounded_stylus_fountain_pen_24
-                                ToolType.ERASER -> R.drawable.rounded_ink_eraser_24
-                                ToolType.TEXT -> R.drawable.rounded_text_fields_24
-                            }
-                        ),
-                        contentDescription = "Toggle toolbar",
-                        tint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.width(if (expanded) 32.dp else 24.dp)
-                    )
-                }
-            },
-            // two items on the right of the center
-            trailingContent = {
-                // Eraser tool
-                IconButton(
-                    modifier = Modifier.width(if (expanded) 64.dp else 48.dp),
-                    onClick = { currentTool = ToolType.ERASER }
-                ) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.rounded_ink_eraser_24),
-                        contentDescription = "Eraser tool",
-                        tint = if (currentTool == ToolType.ERASER) MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.width(if (expanded) 28.dp else 24.dp)
-                    )
-                }
 
-                // Text tool
-                IconButton(
-                    modifier = Modifier.width(if (expanded) 64.dp else 48.dp),
-                    onClick = { currentTool = ToolType.TEXT }
-                ) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.rounded_text_fields_24),
-                        contentDescription = "Text tool",
-                        tint = if (currentTool == ToolType.TEXT) MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.width(if (expanded) 28.dp else 24.dp)
-                    )
+                        // Slider to pick pen width
+                        androidx.compose.material3.Slider(
+                            value = penWidth,
+                            onValueChange = { penWidth = it },
+                            valueRange = 1f..48f,
+                            modifier = Modifier.width(240.dp)
+                        )
+                    }
                 }
             }
-        )
+
+            // Small spacer between secondary toolbar and main toolbar
+            androidx.compose.foundation.layout.Spacer(modifier = Modifier.size(6.dp))
+
+            // HorizontalFloatingToolbar at bottom center - top layer overlay
+            HorizontalFloatingToolbar(
+                modifier = Modifier
+                    .zIndex(1f),
+                 expanded = expanded,
+                 // two items on the left of the center
+                 leadingContent = {
+                     // Hand tool
+                     IconButton(
+                         modifier = Modifier.width(if (expanded) 64.dp else 48.dp),
+                         onClick = {
+                             currentTool = ToolType.HAND
+                             showPenOptions = false
+                         }
+                     ) {
+                         Icon(
+                             painter = painterResource(id = R.drawable.rounded_back_hand_24),
+                             contentDescription = "Hand tool",
+                             tint = if (currentTool == ToolType.HAND) MaterialTheme.colorScheme.primary
+                             else MaterialTheme.colorScheme.onSurfaceVariant,
+                             modifier = Modifier.width(if (expanded) 28.dp else 24.dp)
+                         )
+                     }
+
+                     // Pen tool: if tapped while already selected, toggle pen options
+                     IconButton(
+                         modifier = Modifier.width(if (expanded) 64.dp else 48.dp),
+                         onClick = {
+                             if (currentTool == ToolType.PEN) {
+                                 showPenOptions = !showPenOptions
+                             } else {
+                                 currentTool = ToolType.PEN
+                                 showPenOptions = false
+                             }
+                         }
+                     ) {
+                         Icon(
+                             painter = painterResource(id = R.drawable.rounded_stylus_fountain_pen_24),
+                             contentDescription = "Pen tool",
+                             tint = if (currentTool == ToolType.PEN) MaterialTheme.colorScheme.primary
+                             else MaterialTheme.colorScheme.onSurfaceVariant,
+                             modifier = Modifier.width(if (expanded) 28.dp else 24.dp)
+                         )
+                     }
+                 },
+                 // center content remains the primary button
+                 content = {
+                     FilledIconButton(
+                         modifier = Modifier.width(if (expanded) 72.dp else 64.dp),
+                         onClick = {
+                             val new = !expanded
+                             expanded = new
+                             if (!new) showPenOptions = false
+                         }
+                     ) {
+                         Icon(
+                             painter = painterResource(
+                                 id = if (expanded) R.drawable.rounded_gesture_24 else when (currentTool) {
+                                     ToolType.HAND -> R.drawable.rounded_back_hand_24
+                                     ToolType.PEN -> R.drawable.rounded_stylus_fountain_pen_24
+                                     ToolType.ERASER -> R.drawable.rounded_ink_eraser_24
+                                     ToolType.TEXT -> R.drawable.rounded_text_fields_24
+                                 }
+                             ),
+                             contentDescription = "Toggle toolbar",
+                             tint = MaterialTheme.colorScheme.onPrimary,
+                             modifier = Modifier.width(if (expanded) 32.dp else 24.dp)
+                         )
+                     }
+                 },
+                 // two items on the right of the center
+                 trailingContent = {
+                     // Eraser tool
+                     IconButton(
+                         modifier = Modifier.width(if (expanded) 64.dp else 48.dp),
+                         onClick = {
+                             currentTool = ToolType.ERASER
+                             showPenOptions = false
+                         }
+                     ) {
+                         Icon(
+                             painter = painterResource(id = R.drawable.rounded_ink_eraser_24),
+                             contentDescription = "Eraser tool",
+                             tint = if (currentTool == ToolType.ERASER) MaterialTheme.colorScheme.primary
+                             else MaterialTheme.colorScheme.onSurfaceVariant,
+                             modifier = Modifier.width(if (expanded) 28.dp else 24.dp)
+                         )
+                     }
+
+                     // Text tool
+                     IconButton(
+                         modifier = Modifier.width(if (expanded) 64.dp else 48.dp),
+                         onClick = {
+                             currentTool = ToolType.TEXT
+                             showPenOptions = false
+                         }
+                     ) {
+                         Icon(
+                             painter = painterResource(id = R.drawable.rounded_text_fields_24),
+                             contentDescription = "Text tool",
+                             tint = if (currentTool == ToolType.TEXT) MaterialTheme.colorScheme.primary
+                             else MaterialTheme.colorScheme.onSurfaceVariant,
+                             modifier = Modifier.width(if (expanded) 28.dp else 24.dp)
+                         )
+                     }
+                 }
+             )
+        }
     }
 }
 
