@@ -10,7 +10,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Box
@@ -57,7 +56,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.platform.LocalContext
@@ -76,8 +75,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.ui.unit.DpOffset
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -182,63 +180,77 @@ fun CanvasApp(viewModel: CanvasViewModel) {
                         .fillMaxWidth(),
                     contentAlignment = Alignment.Center
                 ) {
-                    // single button that opens the dropdown menu below it
-                    Box {
-                        IconButton(onClick = { topMenuOpen = !topMenuOpen }, modifier = Modifier.size(40.dp)) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.rounded_keyboard_arrow_down_24),
-                                contentDescription = "Top menu",
-                                tint = MaterialTheme.colorScheme.onSurface,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-
-                        Box(
-                            modifier = Modifier.fillMaxWidth(),
-                            contentAlignment = Alignment.Center
+                    // left-corner pill container with Undo + Menu buttons
+                    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Surface(
+                            shape = RoundedCornerShape(24.dp),
+                            color = MaterialTheme.colorScheme.surface,
+                            tonalElevation = 6.dp,
+                            modifier = Modifier
+                                .padding(start = 4.dp)
                         ) {
+                            Row(modifier = Modifier.padding(horizontal = 4.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                                // Undo button: remove last stroke
+                                IconButton(onClick = {
+                                    if (strokes.isNotEmpty()) {
+                                        viewModel.setStrokes(strokes.dropLast(1))
+                                    }
+                                }) {
+                                    Icon(painter = painterResource(id = R.drawable.rounded_undo_24), contentDescription = "Undo", tint = MaterialTheme.colorScheme.onSurface)
+                                }
 
-                            DropdownMenu(
-                                expanded = topMenuOpen,
-                                onDismissRequest = { topMenuOpen = false },
-                                // Make the dropdown float neatly below the center
-                                modifier = Modifier
-                                    .wrapContentWidth()
-                                    .padding(horizontal = 12.dp, vertical = 2.dp),
-                                shape = RoundedCornerShape(20.dp),
-                                offset = DpOffset(x = 0.dp, y = 4.dp) // small spacing below button
-                            ) {
-                                Box(
+                                // Menu toggle button
+                                IconButton(onClick = { topMenuOpen = !topMenuOpen }, modifier = Modifier.size(40.dp)) {
+                                    Icon(
+                                        painter = painterResource(id = R.drawable.rounded_keyboard_arrow_down_24),
+                                        contentDescription = "Top menu",
+                                        tint = MaterialTheme.colorScheme.onSurface,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+                                // DropdownMenu anchored to the menu button — shows horizontal icon row
+                                DropdownMenu(
+                                    expanded = topMenuOpen,
+                                    onDismissRequest = { topMenuOpen = false },
                                     modifier = Modifier
-                                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                                    contentAlignment = Alignment.Center
+                                        .wrapContentWidth()
+                                        .padding(horizontal = 12.dp, vertical = 2.dp),
+                                    shape = RoundedCornerShape(20.dp),
+                                    offset = DpOffset(x = 0.dp, y = 4.dp)
                                 ) {
-                                    Row(
-                                        horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
-                                        verticalAlignment = Alignment.CenterVertically
+                                    Box(
+                                        modifier = Modifier
+                                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                                        contentAlignment = Alignment.Center
                                     ) {
-                                        IconButton(onClick = { topMenuOpen = false }) {
-                                            Icon(painter = painterResource(id = R.drawable.rounded_ios_share_24), contentDescription = "Share")
-                                        }
-                                        IconButton(onClick = { topMenuOpen = false }) {
-                                            Icon(painter = painterResource(id = R.drawable.rounded_download_24), contentDescription = "Save")
-                                        }
-                                        IconButton(onClick = { topMenuOpen = false }) {
-                                            Icon(painter = painterResource(id = R.drawable.rounded_cleaning_services_24), contentDescription = "Clear all")
-                                        }
-                                        IconButton(onClick = { topMenuOpen = false }) {
-                                            Icon(painter = painterResource(id = R.drawable.rounded_settings_24), contentDescription = "Settings")
-                                        }
-                                        IconButton(onClick = { topMenuOpen = false }) {
-                                            Icon(painter = painterResource(id = R.drawable.rounded_info_24), contentDescription = "About")
+                                        Row(
+                                            horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            IconButton(onClick = { topMenuOpen = false }) {
+                                                Icon(painter = painterResource(id = R.drawable.rounded_ios_share_24), contentDescription = "Share")
+                                            }
+                                            IconButton(onClick = { topMenuOpen = false }) {
+                                                Icon(painter = painterResource(id = R.drawable.rounded_download_24), contentDescription = "Save")
+                                            }
+                                            IconButton(onClick = { topMenuOpen = false }) {
+                                                Icon(painter = painterResource(id = R.drawable.rounded_cleaning_services_24), contentDescription = "Clear all")
+                                            }
+                                            IconButton(onClick = { topMenuOpen = false }) {
+                                                Icon(painter = painterResource(id = R.drawable.rounded_settings_24), contentDescription = "Settings")
+                                            }
+                                            IconButton(onClick = { topMenuOpen = false }) {
+                                                Icon(painter = painterResource(id = R.drawable.rounded_info_24), contentDescription = "About")
+                                            }
                                         }
                                     }
                                 }
                             }
                         }
 
+                        // keep left alignment; no spacer needed
                     }
-                }
+                 }
             }
         }
 
@@ -961,4 +973,3 @@ private fun DrawScope.drawScribbleStroke(stroke: List<Offset>, color: Color, wid
     // Final main stroke uses baseWidth so finished strokes keep selected thickness
     drawPath(mainPath, color, style = Stroke(width = baseWidth))
 }
-
