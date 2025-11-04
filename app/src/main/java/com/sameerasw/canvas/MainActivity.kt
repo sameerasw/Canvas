@@ -66,6 +66,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlin.math.max
+import androidx.compose.ui.unit.sp
 
 @OptIn(ExperimentalMaterial3Api::class)
 enum class ToolType {
@@ -119,6 +120,11 @@ fun CanvasApp(viewModel: CanvasViewModel) {
     // smoothed normalized strength (0..1) for slider haptics
     var smoothedStrength by remember { mutableStateOf((penWidth - 1f) / (48f - 1f)) }
 
+    // Text font size state: used when TEXT tool's secondary toolbar is shown
+    var textSize by remember { mutableStateOf(16f) }
+    var prevTextValue by remember { mutableStateOf(textSize) }
+    var smoothedTextStrength by remember { mutableStateOf((textSize - 8f) / (128f - 8f)) }
+
     var showPenOptions by remember { mutableStateOf(false) }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -130,6 +136,7 @@ fun CanvasApp(viewModel: CanvasViewModel) {
             strokes = strokes.toMutableList(),
             texts = texts,
             penWidth = penWidth,
+            textSize = textSize,
             onAddStroke = { viewModel.addStroke(it) },
             onRemoveStroke = { predicate -> viewModel.removeStroke(predicate) },
             onAddText = { viewModel.addText(it) },
@@ -163,44 +170,84 @@ fun CanvasApp(viewModel: CanvasViewModel) {
                             .width(280.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        // live preview circle centered above the slider
-                        val circleSize = (penWidth * 1.5f).dp.coerceAtLeast(10.dp).coerceAtMost(64.dp)
-                        androidx.compose.foundation.layout.Box(
-                            modifier = Modifier.width(200.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Surface(
-                                shape = androidx.compose.foundation.shape.CircleShape,
-                                color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(circleSize)
-                            ) {}
-                        }
+                        // When the Pen tool is active we show the circle preview + pen slider.
+                        // When the Text tool is active we reuse this same area to show a font-size preview and slider.
+                        if (currentTool == ToolType.PEN) {
+                            // live preview circle centered above the slider
+                            val circleSize = (penWidth * 1.5f).dp.coerceAtLeast(10.dp).coerceAtMost(64.dp)
+                            androidx.compose.foundation.layout.Box(
+                                modifier = Modifier.width(200.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Surface(
+                                    shape = androidx.compose.foundation.shape.CircleShape,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(circleSize)
+                                ) {}
+                            }
 
-                        // Slider to pick pen width - call variable haptic on value changes
-                        androidx.compose.material3.Slider(
-                            value = penWidth,
-                            onValueChange = { new ->
-                                // Only trigger a tick when the integer step changes to avoid excessive ticks
-                                val prevStep = prevPenValue.toInt()
-                                val newStep = new.toInt()
-                                penWidth = new
-                                if (newStep != prevStep) {
-                                    prevPenValue = new
-                                    // normalize strength 0..1 across the slider range
-                                    val strength = (new - 1f) / (48f - 1f)
-                                    // smooth the strength using EMA so ticks feel gradual
-                                    val alpha = 0.35f
-                                    smoothedStrength = smoothedStrength * (1f - alpha) + strength * alpha
-                                    HapticUtil.performVariableTick(haptics, smoothedStrength)
-                                }
-                            },
-                            onValueChangeFinished = {
-                                // strong confirm tick when lifting
-                                HapticUtil.performClick(haptics)
-                            },
-                            valueRange = 1f..48f,
-                            modifier = Modifier.width(240.dp)
-                        )
+                            // Slider to pick pen width - call variable haptic on value changes
+                            androidx.compose.material3.Slider(
+                                value = penWidth,
+                                onValueChange = { new ->
+                                    // Only trigger a tick when the integer step changes to avoid excessive ticks
+                                    val prevStep = prevPenValue.toInt()
+                                    val newStep = new.toInt()
+                                    penWidth = new
+                                    if (newStep != prevStep) {
+                                        prevPenValue = new
+                                        // normalize strength 0..1 across the slider range
+                                        val strength = (new - 1f) / (48f - 1f)
+                                        // smooth the strength using EMA so ticks feel gradual
+                                        val alpha = 0.35f
+                                        smoothedStrength = smoothedStrength * (1f - alpha) + strength * alpha
+                                        HapticUtil.performVariableTick(haptics, smoothedStrength)
+                                    }
+                                },
+                                onValueChangeFinished = {
+                                    // strong confirm tick when lifting
+                                    HapticUtil.performClick(haptics)
+                                },
+                                valueRange = 1f..48f,
+                                modifier = Modifier.width(240.dp)
+                            )
+                        } else if (currentTool == ToolType.TEXT) {
+                            // font-size preview (show letter "A" scaled to chosen size)
+                            androidx.compose.foundation.layout.Box(
+                                modifier = Modifier.width(200.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "A",
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontSize = textSize.sp
+                                )
+                            }
+
+                            // Slider to pick font size - call variable haptic on value changes
+                            androidx.compose.material3.Slider(
+                                value = textSize,
+                                onValueChange = { new ->
+                                    val prevStep = prevTextValue.toInt()
+                                    val newStep = new.toInt()
+                                    textSize = new
+                                    if (newStep != prevStep) {
+                                        prevTextValue = new
+                                        val strength = (new - 8f) / (128f - 8f)
+                                        val alpha = 0.35f
+                                        smoothedTextStrength = smoothedTextStrength * (1f - alpha) + strength * alpha
+                                        HapticUtil.performVariableTick(haptics, smoothedTextStrength)
+                                    }
+                                },
+                                onValueChangeFinished = {
+                                    HapticUtil.performClick(haptics)
+                                },
+                                valueRange = 8f..128f,
+                                modifier = Modifier.width(240.dp)
+                            )
+                        } else {
+                            // fallback for other tools - show nothing
+                        }
                     }
                 }
             }
@@ -304,13 +351,19 @@ fun CanvasApp(viewModel: CanvasViewModel) {
                          )
                      }
 
-                     // Text tool
+                     // Text tool: tapping while already selected toggles font-size options
                      IconButton(
                          modifier = Modifier.width(if (expanded) 64.dp else 48.dp),
                          onClick = {
-                             currentTool = ToolType.TEXT
-                             showPenOptions = false
-                             HapticUtil.performToggleOn(haptics)
+                             if (currentTool == ToolType.TEXT) {
+                                 showPenOptions = !showPenOptions
+                                 // little click when opening the secondary toolbar
+                                 HapticUtil.performClick(haptics)
+                             } else {
+                                 currentTool = ToolType.TEXT
+                                 showPenOptions = false
+                                 HapticUtil.performToggleOn(haptics)
+                             }
                          }
                      ) {
                          Icon(
@@ -333,6 +386,7 @@ fun DrawingCanvas(
     strokes: MutableList<DrawStroke>,
     texts: List<com.sameerasw.canvas.data.TextItem> = emptyList(),
     penWidth: Float = 2.5f,
+    textSize: Float = 16f,
     modifier: Modifier = Modifier,
     onAddStroke: ((DrawStroke) -> Unit)? = null,
     onRemoveStroke: ((predicate: (DrawStroke) -> Boolean) -> Unit)? = null,
@@ -393,7 +447,7 @@ fun DrawingCanvas(
                     offsetY = centroid.y - worldCy * scale
                 }
             }
-            .pointerInput(currentTool, penWidth) {
+            .pointerInput(currentTool, penWidth, textSize) {
                 detectDragGestures(
                     onDragStart = { offset ->
                         currentStroke.clear()
@@ -415,7 +469,8 @@ fun DrawingCanvas(
                                     id = selectedTextId!!,
                                     x = worldPos.x,
                                     y = worldPos.y,
-                                    text = texts.first { it.id == selectedTextId!! }.text
+                                    text = texts.first { it.id == selectedTextId!! }.text,
+                                    size = texts.first { it.id == selectedTextId!! }.size
                                 )
                             )
                             change.consume()
@@ -689,22 +744,26 @@ fun DrawingCanvas(
             confirmButton = {
                 TextButton(onClick = {
                     if (selectedTextId != null) {
-                        // editing existing
+                        // editing existing - preserve existing size
+                        val existing = texts.firstOrNull { it.id == selectedTextId!! }
+                        val sizeToUse = existing?.size ?: textSize
                         onUpdateText?.invoke(
                             com.sameerasw.canvas.data.TextItem(
                                 id = selectedTextId!!,
                                 x = pendingTextPosition.x,
                                 y = pendingTextPosition.y,
-                                text = pendingTextValue
+                                text = pendingTextValue,
+                                size = sizeToUse
                             )
                         )
                     } else {
-                        // adding new
+                        // adding new - use the currently selected textSize
                         onAddText?.invoke(
                             com.sameerasw.canvas.data.TextItem(
                                 x = pendingTextPosition.x,
                                 y = pendingTextPosition.y,
-                                text = pendingTextValue
+                                text = pendingTextValue,
+                                size = textSize
                             )
                         )
                     }
