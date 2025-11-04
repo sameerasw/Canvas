@@ -287,12 +287,6 @@ fun DrawingCanvas(
     // Selected text for context menu / moving
     var selectedTextId by remember { mutableStateOf<Long?>(null) }
     var isMovingText by remember { mutableStateOf(false) }
-    // capture the pen width used for the active stroke so it doesn't change mid-stroke
-    var activePenWidth by remember { mutableStateOf(penWidth) }
-    // when the external penWidth changes, update activePenWidth so previews reflect changes
-    LaunchedEffect(penWidth) {
-        activePenWidth = penWidth
-    }
 
     Canvas(
         modifier = modifier
@@ -316,7 +310,7 @@ fun DrawingCanvas(
                     offsetY = centroid.y - worldCy * scale
                 }
             }
-            .pointerInput(currentTool) {
+            .pointerInput(currentTool, penWidth) {
                 detectDragGestures(
                     onDragStart = { offset ->
                         currentStroke.clear()
@@ -327,10 +321,6 @@ fun DrawingCanvas(
                         if (currentTool == ToolType.TEXT) {
                             // store pending position in world coords
                             pendingTextPosition = worldStart
-                        }
-                        if (currentTool == ToolType.PEN) {
-                            // lock in the pen width for this stroke
-                            activePenWidth = penWidth
                         }
                     },
                     onDrag = { change: PointerInputChange, _ ->
@@ -396,7 +386,8 @@ fun DrawingCanvas(
                     },
                     onDragEnd = {
                         if (currentTool == ToolType.PEN && currentStroke.size >= 2) {
-                            val newStroke = DrawStroke(currentStroke.toList(), strokeColor, width = activePenWidth)
+                            // save stroke with the current penWidth (world units)
+                            val newStroke = DrawStroke(currentStroke.toList(), strokeColor, width = penWidth)
                             onAddStroke?.invoke(newStroke)
                         }
                         currentStroke.clear()
@@ -473,10 +464,10 @@ fun DrawingCanvas(
             drawStringWithFont(context, t.text, sx, sy, fontSize, themeColor)
         }
 
-        // Draw current stroke being drawn (world coords -> screen coords) using activePenWidth
+        // Draw current stroke being drawn (world coords -> screen coords) using current penWidth so slider changes apply immediately
         if (currentTool == ToolType.PEN && currentStroke.size >= 2) {
             val screenPoints = currentStroke.map { world -> Offset(world.x * scale + offsetX, world.y * scale + offsetY) }
-            drawScribbleStroke(screenPoints, strokeColor, activePenWidth * scale)
+            drawScribbleStroke(screenPoints, strokeColor, penWidth * scale)
         }
 
         // Draw eraser preview circle in screen coords
@@ -614,40 +605,46 @@ private fun DrawScope.drawScribbleStroke(stroke: List<Offset>, color: Color, wid
     if (stroke.size < 2) return
 
     val random = Random(42)
-    val baseWidth = width
-    // generate scribble offsets proportional to width so larger widths look thicker
-    val scribbleOffsets = listOf(-baseWidth * 0.5f, -baseWidth * 0.25f, 0f, baseWidth * 0.25f, baseWidth * 0.5f)
+    val baseWidth = width.coerceAtLeast(1.0f)
 
-    scribbleOffsets.forEachIndexed { offsetIndex, scribbleOffset ->
-        val path = Path().apply {
-            moveTo(stroke.first().x + scribbleOffset, stroke.first().y + scribbleOffset)
+    // fewer, gentler scribble layers to reduce jaggedness
+    val layerOffsets = listOf(-0.4f, 0f, 0.4f)
 
-            for (i in 1 until stroke.size) {
-                val current = stroke[i]
-                val jitter = baseWidth * 0.2f
-                val randomOffsetX = (random.nextFloat() - 0.5f) * jitter * (6 - abs(offsetIndex - 2))
-                val randomOffsetY = (random.nextFloat() - 0.5f) * jitter * (6 - abs(offsetIndex - 2))
+    // For each layer, build a smoothed path using quadratic bezier midpoints
+    layerOffsets.forEachIndexed { offsetIndex, layerFactor ->
+        val layerOffset = layerFactor * baseWidth
+        val path = Path()
+        // start
+        path.moveTo(stroke.first().x + layerOffset, stroke.first().y + layerOffset)
 
-                val scribbledX = current.x + scribbleOffset + randomOffsetX
-                val scribbledY = current.y + scribbleOffset + randomOffsetY
-
-                lineTo(scribbledX, scribbledY)
-            }
+        // create smoothed path: quadratic to midpoints
+        for (i in 1 until stroke.size) {
+            val prev = stroke[i - 1]
+            val curr = stroke[i]
+            val midX = (prev.x + curr.x) / 2f + layerOffset
+            val midY = (prev.y + curr.y) / 2f + layerOffset
+            path.quadraticBezierTo(prev.x + layerOffset, prev.y + layerOffset, midX, midY)
         }
+        // ensure last point
+        path.lineTo(stroke.last().x + layerOffset, stroke.last().y + layerOffset)
 
-        val widthFactor = 1f - (abs(offsetIndex - 2) * 0.15f)
-        val strokeWidth = baseWidth * widthFactor
-
-        drawPath(path, color.copy(alpha = 0.65f + 0.35f * widthFactor), style = Stroke(width = strokeWidth))
+        val widthFactor = 1f - (abs(offsetIndex - 1) * 0.25f)
+        val strokeWidth = baseWidth * (0.6f + 0.4f * widthFactor)
+        drawPath(path, color.copy(alpha = 0.55f + 0.25f * widthFactor), style = Stroke(width = strokeWidth))
     }
 
-    val mainPath = Path().apply {
-         moveTo(stroke.first().x, stroke.first().y)
-         for (i in 1 until stroke.size) {
-             lineTo(stroke[i].x, stroke[i].y)
-         }
-     }
-    // Use baseWidth directly for the main stroke so finished strokes keep the selected thickness
-    val mainStrokeWidth = baseWidth.coerceAtLeast(1.5f)
-    drawPath(mainPath, color, style = Stroke(width = mainStrokeWidth))
+    // main smoothed path
+    val mainPath = Path()
+    mainPath.moveTo(stroke.first().x, stroke.first().y)
+    for (i in 1 until stroke.size) {
+        val prev = stroke[i - 1]
+        val curr = stroke[i]
+        val midX = (prev.x + curr.x) / 2f
+        val midY = (prev.y + curr.y) / 2f
+        mainPath.quadraticBezierTo(prev.x, prev.y, midX, midY)
+    }
+    mainPath.lineTo(stroke.last().x, stroke.last().y)
+
+    // Final main stroke uses baseWidth so finished strokes keep selected thickness
+    drawPath(mainPath, color, style = Stroke(width = baseWidth))
 }
