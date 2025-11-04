@@ -121,11 +121,15 @@ fun CanvasApp(viewModel: CanvasViewModel) {
 
     // Pen options UI state: width and whether options are visible
     var penWidth by remember { mutableStateOf(2.5f) }
+    // keep previous pen value to only tick on step changes
+    var prevPenValue by remember { mutableStateOf(penWidth) }
+    // smoothed normalized strength (0..1) for slider haptics
+    var smoothedStrength by remember { mutableStateOf((penWidth - 1f) / (48f - 1f)) }
+
     var showPenOptions by remember { mutableStateOf(false) }
 
     Box(modifier = Modifier.fillMaxSize()) {
         val haptics = LocalHapticFeedback.current
-        var sliderHapticJob by remember { mutableStateOf<Job?>(null) }
 
         // Canvas area - bottom layer (z-index: 0)
         DrawingCanvas(
@@ -179,34 +183,30 @@ fun CanvasApp(viewModel: CanvasViewModel) {
                             ) {}
                         }
 
-                        // Slider to pick pen width - attach pointerInput to detect pointer down/up and start/stop haptics
+                        // Slider to pick pen width - call variable haptic on value changes
                         androidx.compose.material3.Slider(
                             value = penWidth,
-                            onValueChange = { penWidth = it },
-                            valueRange = 1f..48f,
-                            modifier = Modifier
-                                .width(240.dp)
-                                .pointerInput(Unit) {
-                                    awaitPointerEventScope {
-                                        var pressed = false
-                                        while (true) {
-                                            val event = awaitPointerEvent()
-                                            val anyPressed = event.changes.any { it.pressed }
-                                            if (anyPressed && !pressed) {
-                                                // press started
-                                                pressed = true
-                                                sliderHapticJob?.cancel()
-                                                sliderHapticJob = HapticUtil.startLoadingHaptics(haptics)
-                                            } else if (!anyPressed && pressed) {
-                                                // press ended
-                                                pressed = false
-                                                sliderHapticJob?.cancel()
-                                                sliderHapticJob = null
-                                                HapticUtil.performClick(haptics)
-                                            }
-                                        }
-                                    }
+                            onValueChange = { new ->
+                                // Only trigger a tick when the integer step changes to avoid excessive ticks
+                                val prevStep = prevPenValue.toInt()
+                                val newStep = new.toInt()
+                                penWidth = new
+                                if (newStep != prevStep) {
+                                    prevPenValue = new
+                                    // normalize strength 0..1 across the slider range
+                                    val strength = (new - 1f) / (48f - 1f)
+                                    // smooth the strength using EMA so ticks feel gradual
+                                    val alpha = 0.35f
+                                    smoothedStrength = smoothedStrength * (1f - alpha) + strength * alpha
+                                    HapticUtil.performVariableTick(haptics, smoothedStrength)
                                 }
+                            },
+                            onValueChangeFinished = {
+                                // strong confirm tick when lifting
+                                HapticUtil.performClick(haptics)
+                            },
+                            valueRange = 1f..48f,
+                            modifier = Modifier.width(240.dp)
                         )
                     }
                 }

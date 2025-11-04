@@ -85,6 +85,37 @@ object HapticUtil {
     }
 
     /**
+     * Perform a variable-strength tick based on [strength] in 0..1.
+     * Lower strengths are subtle, higher strengths are firmer.
+     */
+    fun performVariableTick(haptics: HapticFeedback?, strength: Float) {
+        try {
+            val s = strength.coerceIn(0f, 1f)
+            // Emit 1..3 light ticks with short spacing so perception scales smoothly with strength.
+            CoroutineScope(Dispatchers.Main).launch {
+                when {
+                    s <= 0.33f -> {
+                        performLightTick(haptics)
+                    }
+                    s <= 0.66f -> {
+                        performLightTick(haptics)
+                        delay(60)
+                        performLightTick(haptics)
+                    }
+                    else -> {
+                        performLightTick(haptics)
+                        delay(50)
+                        performLightTick(haptics)
+                        delay(40)
+                        performLightTick(haptics)
+                    }
+                }
+            }
+        } catch (_: Exception) {
+        }
+    }
+
+    /**
      * Start repeating haptic ticks for loading states
      * Returns a Job that can be cancelled to stop the haptics
      *
