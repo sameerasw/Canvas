@@ -46,6 +46,7 @@ import kotlin.math.abs
 import kotlin.random.Random
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -55,6 +56,7 @@ import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.res.ResourcesCompat
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.runtime.LaunchedEffect
 
 @OptIn(ExperimentalMaterial3Api::class)
 enum class ToolType {
@@ -101,12 +103,17 @@ fun CanvasApp(viewModel: CanvasViewModel) {
     val texts by viewModel.texts.collectAsState()
     var expanded by remember { mutableStateOf(false) }
 
+    // Pen options UI state: width and whether options are visible
+    var penWidth by remember { mutableStateOf(2.5f) }
+    var showPenOptions by remember { mutableStateOf(false) }
+
     Box(modifier = Modifier.fillMaxSize()) {
         // Canvas area - bottom layer (z-index: 0)
         DrawingCanvas(
             currentTool = currentTool,
             strokes = strokes.toMutableList(),
             texts = texts,
+            penWidth = penWidth,
             onAddStroke = { viewModel.addStroke(it) },
             onRemoveStroke = { predicate -> viewModel.removeStroke(predicate) },
             onAddText = { viewModel.addText(it) },
@@ -114,6 +121,40 @@ fun CanvasApp(viewModel: CanvasViewModel) {
             onRemoveText = { viewModel.removeText(it) },
             modifier = Modifier.fillMaxSize()
         )
+
+        // Secondary pen options toolbar (appears when pen icon tapped again)
+        if (showPenOptions) {
+            androidx.compose.foundation.layout.Column(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .offset(y = -FloatingToolbarDefaults.ScreenOffset - 96.dp)
+                    .zIndex(2f),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // live preview circle centered above the slider
+                // make preview circle reasonable: penWidth is in world units, map to dp with a smaller multiplier
+                val circleSize = (penWidth * 1.5f).dp.coerceAtLeast(12.dp)
+                androidx.compose.foundation.layout.Box(
+                    modifier = Modifier.width(200.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    androidx.compose.material3.Surface(
+                        shape = androidx.compose.foundation.shape.CircleShape,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(circleSize)
+                    ) {}
+                }
+
+                // Slider to pick pen width
+                androidx.compose.material3.Slider(
+                    value = penWidth,
+                    onValueChange = { penWidth = it },
+                    // reduce max so preview and strokes stay reasonable on typical screens
+                    valueRange = 1f..48f,
+                    modifier = Modifier.width(240.dp)
+                )
+            }
+        }
 
         // HorizontalFloatingToolbar at bottom center - top layer overlay
         HorizontalFloatingToolbar(
@@ -138,10 +179,17 @@ fun CanvasApp(viewModel: CanvasViewModel) {
                     )
                 }
 
-                // Pen tool
+                // Pen tool: if tapped while already selected, toggle pen options
                 IconButton(
                     modifier = Modifier.width(if (expanded) 64.dp else 48.dp),
-                    onClick = { currentTool = ToolType.PEN }
+                    onClick = {
+                        if (currentTool == ToolType.PEN) {
+                            showPenOptions = !showPenOptions
+                        } else {
+                            currentTool = ToolType.PEN
+                            showPenOptions = false
+                        }
+                    }
                 ) {
                     Icon(
                         painter = painterResource(id = R.drawable.rounded_stylus_fountain_pen_24),
@@ -212,6 +260,7 @@ fun DrawingCanvas(
     currentTool: ToolType,
     strokes: MutableList<DrawStroke>,
     texts: List<com.sameerasw.doodlist.data.TextItem> = emptyList(),
+    penWidth: Float = 2.5f,
     modifier: Modifier = Modifier,
     onAddStroke: ((DrawStroke) -> Unit)? = null,
     onRemoveStroke: ((predicate: (DrawStroke) -> Boolean) -> Unit)? = null,
@@ -238,6 +287,12 @@ fun DrawingCanvas(
     // Selected text for context menu / moving
     var selectedTextId by remember { mutableStateOf<Long?>(null) }
     var isMovingText by remember { mutableStateOf(false) }
+    // capture the pen width used for the active stroke so it doesn't change mid-stroke
+    var activePenWidth by remember { mutableStateOf(penWidth) }
+    // when the external penWidth changes, update activePenWidth so previews reflect changes
+    LaunchedEffect(penWidth) {
+        activePenWidth = penWidth
+    }
 
     Canvas(
         modifier = modifier
@@ -272,6 +327,10 @@ fun DrawingCanvas(
                         if (currentTool == ToolType.TEXT) {
                             // store pending position in world coords
                             pendingTextPosition = worldStart
+                        }
+                        if (currentTool == ToolType.PEN) {
+                            // lock in the pen width for this stroke
+                            activePenWidth = penWidth
                         }
                     },
                     onDrag = { change: PointerInputChange, _ ->
@@ -337,7 +396,7 @@ fun DrawingCanvas(
                     },
                     onDragEnd = {
                         if (currentTool == ToolType.PEN && currentStroke.size >= 2) {
-                            val newStroke = DrawStroke(currentStroke.toList(), strokeColor)
+                            val newStroke = DrawStroke(currentStroke.toList(), strokeColor, width = activePenWidth)
                             onAddStroke?.invoke(newStroke)
                         }
                         currentStroke.clear()
@@ -403,7 +462,7 @@ fun DrawingCanvas(
         // Draw all strokes (stored in world coords) transformed to screen coords
         strokes.forEach { stroke ->
             val screenPoints = stroke.points.map { world -> Offset(world.x * scale + offsetX, world.y * scale + offsetY) }
-            if (screenPoints.size >= 2) drawScribbleStroke(screenPoints, strokeColor)
+            if (screenPoints.size >= 2) drawScribbleStroke(screenPoints, strokeColor, stroke.width * scale)
         }
 
         // Draw texts at their world positions (map to screen and scale font size)
@@ -414,10 +473,10 @@ fun DrawingCanvas(
             drawStringWithFont(context, t.text, sx, sy, fontSize, themeColor)
         }
 
-        // Draw current stroke being drawn (world coords -> screen coords)
+        // Draw current stroke being drawn (world coords -> screen coords) using activePenWidth
         if (currentTool == ToolType.PEN && currentStroke.size >= 2) {
             val screenPoints = currentStroke.map { world -> Offset(world.x * scale + offsetX, world.y * scale + offsetY) }
-            drawScribbleStroke(screenPoints, strokeColor)
+            drawScribbleStroke(screenPoints, strokeColor, activePenWidth * scale)
         }
 
         // Draw eraser preview circle in screen coords
@@ -551,12 +610,13 @@ private fun DrawScope.drawStringWithFont(context: android.content.Context, text:
     }
 }
 
-private fun DrawScope.drawScribbleStroke(stroke: List<Offset>, color: Color) {
+private fun DrawScope.drawScribbleStroke(stroke: List<Offset>, color: Color, width: Float) {
     if (stroke.size < 2) return
 
     val random = Random(42)
-    val scribbleOffsets = listOf(-1.2f, -0.6f, 0f, 0.6f, 1.2f)
-    val baseWidth = 2.5f
+    val baseWidth = width
+    // generate scribble offsets proportional to width so larger widths look thicker
+    val scribbleOffsets = listOf(-baseWidth * 0.5f, -baseWidth * 0.25f, 0f, baseWidth * 0.25f, baseWidth * 0.5f)
 
     scribbleOffsets.forEachIndexed { offsetIndex, scribbleOffset ->
         val path = Path().apply {
@@ -564,8 +624,9 @@ private fun DrawScope.drawScribbleStroke(stroke: List<Offset>, color: Color) {
 
             for (i in 1 until stroke.size) {
                 val current = stroke[i]
-                val randomOffsetX = (random.nextFloat() - 0.5f) * 1.5f * (6 - abs(offsetIndex - 2))
-                val randomOffsetY = (random.nextFloat() - 0.5f) * 1.5f * (6 - abs(offsetIndex - 2))
+                val jitter = baseWidth * 0.2f
+                val randomOffsetX = (random.nextFloat() - 0.5f) * jitter * (6 - abs(offsetIndex - 2))
+                val randomOffsetY = (random.nextFloat() - 0.5f) * jitter * (6 - abs(offsetIndex - 2))
 
                 val scribbledX = current.x + scribbleOffset + randomOffsetX
                 val scribbledY = current.y + scribbleOffset + randomOffsetY
@@ -581,10 +642,12 @@ private fun DrawScope.drawScribbleStroke(stroke: List<Offset>, color: Color) {
     }
 
     val mainPath = Path().apply {
-        moveTo(stroke.first().x, stroke.first().y)
-        for (i in 1 until stroke.size) {
-            lineTo(stroke[i].x, stroke[i].y)
-        }
-    }
-    drawPath(mainPath, color, style = Stroke(width = 1.5f))
+         moveTo(stroke.first().x, stroke.first().y)
+         for (i in 1 until stroke.size) {
+             lineTo(stroke[i].x, stroke[i].y)
+         }
+     }
+    // Use baseWidth directly for the main stroke so finished strokes keep the selected thickness
+    val mainStrokeWidth = baseWidth.coerceAtLeast(1.5f)
+    drawPath(mainPath, color, style = Stroke(width = mainStrokeWidth))
 }
