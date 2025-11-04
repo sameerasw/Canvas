@@ -14,6 +14,8 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -53,6 +55,9 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.platform.LocalContext
@@ -67,6 +72,9 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlin.math.max
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Column
 
 @OptIn(ExperimentalMaterial3Api::class)
 enum class ToolType {
@@ -112,6 +120,8 @@ fun CanvasApp(viewModel: CanvasViewModel) {
     val strokes by viewModel.strokes.collectAsState()
     val texts by viewModel.texts.collectAsState()
     var expanded by remember { mutableStateOf(false) }
+    // top toolbar menu open state (visible only when bottom toolbar expanded)
+    var topMenuOpen by remember { mutableStateOf(false) }
 
     // Pen options UI state: width and whether options are visible
     var penWidth by remember { mutableStateOf(2.5f) }
@@ -129,6 +139,8 @@ fun CanvasApp(viewModel: CanvasViewModel) {
 
     Box(modifier = Modifier.fillMaxSize()) {
         val haptics = LocalHapticFeedback.current
+        // interaction source for top toolbar clickable so we don't create it during composition repeatedly
+        val topInteractionSource = remember { MutableInteractionSource() }
 
         // Canvas area - bottom layer (z-index: 0)
         DrawingCanvas(
@@ -145,14 +157,64 @@ fun CanvasApp(viewModel: CanvasViewModel) {
             modifier = Modifier.fillMaxSize()
         )
 
-        // Bottom column that contains the secondary pen options and the main floating toolbar.
-        androidx.compose.foundation.layout.Column(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 16.dp) // offset slightly from system gesture/navigation bar
-                .zIndex(1f),
-            horizontalAlignment = Alignment.CenterHorizontally
+        // Top overlay toolbar: slides down from top when main toolbar is expanded
+        AnimatedVisibility(
+            visible = expanded,
+            enter = slideInVertically(initialOffsetY = { -it }, animationSpec = tween(260)),
+            exit = slideOutVertically(targetOffsetY = { -it }, animationSpec = tween(220)),
         ) {
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .statusBarsPadding()
+                    .padding(top = 8.dp)
+                    .zIndex(20f)
+                    // add a no-op clickable to ensure this surface consumes pointer events before the Canvas
+                    .clickable(interactionSource = topInteractionSource, indication = null) {},
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surface,
+            ) {
+                Box(
+                    modifier = Modifier
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                        .fillMaxWidth(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    // single button that opens the dropdown menu below it
+                    Box {
+                        IconButton(onClick = { topMenuOpen = !topMenuOpen }, modifier = Modifier.size(40.dp)) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.rounded_keyboard_arrow_down_24),
+                                contentDescription = "Top menu",
+                                tint = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+
+                        DropdownMenu(
+                            expanded = topMenuOpen,
+                            onDismissRequest = { topMenuOpen = false },
+                            modifier = Modifier.wrapContentWidth(Alignment.CenterHorizontally)
+                        ) {
+                            DropdownMenuItem(text = { Text("Share") }, onClick = { topMenuOpen = false })
+                            DropdownMenuItem(text = { Text("Save") }, onClick = { topMenuOpen = false })
+                            DropdownMenuItem(text = { Text("Clear all") }, onClick = { topMenuOpen = false })
+                            DropdownMenuItem(text = { Text("Settings") }, onClick = { topMenuOpen = false })
+                            DropdownMenuItem(text = { Text("About") }, onClick = { topMenuOpen = false })
+                        }
+                    }
+                }
+            }
+        }
+
+        // Bottom column that contains the secondary pen options and the main floating toolbar.
+        Column(
+             modifier = Modifier
+                 .align(Alignment.BottomCenter)
+                 .padding(bottom = 16.dp) // offset slightly from system gesture/navigation bar
+                 .zIndex(1f),
+             horizontalAlignment = Alignment.CenterHorizontally
+         ) {
             // Secondary pen options toolbar (appears when pen icon tapped again)
             AnimatedVisibility(
                 visible = showPenOptions,
@@ -164,18 +226,18 @@ fun CanvasApp(viewModel: CanvasViewModel) {
                     shape = RoundedCornerShape(20.dp),
                     color = MaterialTheme.colorScheme.surface,
                 ) {
-                    androidx.compose.foundation.layout.Column(
-                        modifier = Modifier
-                            .padding(12.dp)
-                            .width(280.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
+                    Column(
+                         modifier = Modifier
+                             .padding(12.dp)
+                             .width(280.dp),
+                         horizontalAlignment = Alignment.CenterHorizontally
+                     ) {
                         // When the Pen tool is active we show the circle preview + pen slider.
                         // When the Text tool is active we reuse this same area to show a font-size preview and slider.
                         if (currentTool == ToolType.PEN) {
                             // live preview circle centered above the slider
                             val circleSize = (penWidth * 1.5f).dp.coerceAtLeast(10.dp).coerceAtMost(64.dp)
-                            androidx.compose.foundation.layout.Box(
+                            Box(
                                 modifier = Modifier.width(200.dp),
                                 contentAlignment = Alignment.Center
                             ) {
@@ -213,7 +275,7 @@ fun CanvasApp(viewModel: CanvasViewModel) {
                             )
                         } else if (currentTool == ToolType.TEXT) {
                             // font-size preview (show letter "A" scaled to chosen size)
-                            androidx.compose.foundation.layout.Box(
+                            Box(
                                 modifier = Modifier.width(200.dp),
                                 contentAlignment = Alignment.Center
                             ) {
@@ -384,10 +446,10 @@ fun CanvasApp(viewModel: CanvasViewModel) {
 fun DrawingCanvas(
     currentTool: ToolType,
     strokes: MutableList<DrawStroke>,
+    modifier: Modifier = Modifier,
     texts: List<com.sameerasw.canvas.data.TextItem> = emptyList(),
     penWidth: Float = 2.5f,
     textSize: Float = 16f,
-    modifier: Modifier = Modifier,
     onAddStroke: ((DrawStroke) -> Unit)? = null,
     onRemoveStroke: ((predicate: (DrawStroke) -> Boolean) -> Unit)? = null,
     onAddText: ((com.sameerasw.canvas.data.TextItem) -> Unit)? = null,
