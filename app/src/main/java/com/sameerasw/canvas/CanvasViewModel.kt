@@ -7,6 +7,7 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.sameerasw.canvas.data.CanvasRepository
 import com.sameerasw.canvas.data.TextItem
+import com.sameerasw.canvas.model.DrawStroke
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -30,6 +31,7 @@ class CanvasViewModel(application: Application) : AndroidViewModel(application) 
         load()
     }
 
+    // Stroke operations
     fun setStrokes(list: List<DrawStroke>) {
         _strokes.value = list
     }
@@ -59,6 +61,15 @@ class CanvasViewModel(application: Application) : AndroidViewModel(application) 
         _texts.value = _texts.value.filterNot { it.id == id }
     }
 
+    fun clearTexts() {
+        _texts.value = emptyList()
+    }
+
+    fun clearAll() {
+        clearStrokes()
+        clearTexts()
+    }
+
     fun save() {
         viewModelScope.launch {
             val model = CanvasModel(_strokes.value, _texts.value)
@@ -76,13 +87,13 @@ class CanvasViewModel(application: Application) : AndroidViewModel(application) 
                     val model: CanvasModel = gson.fromJson(json, type)
                     _strokes.value = model.strokes
                     _texts.value = model.texts
-                } catch (e: Exception) {
+                } catch (_: Exception) {
                     // handle old format: maybe only strokes were saved
                     try {
                         val type = object : TypeToken<List<DrawStroke>>() {}.type
                         val list: List<DrawStroke> = gson.fromJson(json, type)
                         _strokes.value = list
-                    } catch (e2: Exception) {
+                    } catch (_: Exception) {
                         // ignore
                     }
                 }
