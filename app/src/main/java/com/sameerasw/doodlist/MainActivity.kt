@@ -334,6 +334,20 @@ fun DrawingCanvas(
                                         distance < worldThreshold
                                     }
                                 }
+
+                                // Also remove text items within threshold (treat text like drawable strokes)
+                                onRemoveText?.let { removeText ->
+                                    // find text ids close enough to the eraser
+                                    val toRemove = texts.filter { text ->
+                                        val dx = worldPos.x - text.x
+                                        val dy = worldPos.y - text.y
+                                        val distance = kotlin.math.hypot(dx, dy)
+                                        // consider text size as extra radius (half of font size as rough bounding)
+                                        distance < worldThreshold + (text.size * 0.5f)
+                                    }.map { it.id }
+
+                                    toRemove.forEach { id -> removeText(id) }
+                                }
                             }
                             ToolType.TEXT -> {
                                 // Text mode: dragging shouldn't draw; we use long-press to add
