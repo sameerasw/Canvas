@@ -10,6 +10,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Box
@@ -57,7 +58,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.platform.LocalContext
@@ -74,7 +74,11 @@ import kotlin.math.max
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.ui.unit.DpOffset
 
 @OptIn(ExperimentalMaterial3Api::class)
 enum class ToolType {
@@ -165,14 +169,12 @@ fun CanvasApp(viewModel: CanvasViewModel) {
         ) {
             Surface(
                 modifier = Modifier
-                    .fillMaxWidth()
                     .statusBarsPadding()
-                    .padding(top = 8.dp)
                     .zIndex(20f)
                     // add a no-op clickable to ensure this surface consumes pointer events before the Canvas
                     .clickable(interactionSource = topInteractionSource, indication = null) {},
                 shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.surface,
+                color = Color.Transparent,
             ) {
                 Box(
                     modifier = Modifier
@@ -191,17 +193,50 @@ fun CanvasApp(viewModel: CanvasViewModel) {
                             )
                         }
 
-                        DropdownMenu(
-                            expanded = topMenuOpen,
-                            onDismissRequest = { topMenuOpen = false },
-                            modifier = Modifier.wrapContentWidth(Alignment.CenterHorizontally)
+                        Box(
+                            modifier = Modifier.fillMaxWidth(),
+                            contentAlignment = Alignment.Center
                         ) {
-                            DropdownMenuItem(text = { Text("Share") }, onClick = { topMenuOpen = false })
-                            DropdownMenuItem(text = { Text("Save") }, onClick = { topMenuOpen = false })
-                            DropdownMenuItem(text = { Text("Clear all") }, onClick = { topMenuOpen = false })
-                            DropdownMenuItem(text = { Text("Settings") }, onClick = { topMenuOpen = false })
-                            DropdownMenuItem(text = { Text("About") }, onClick = { topMenuOpen = false })
+
+                            DropdownMenu(
+                                expanded = topMenuOpen,
+                                onDismissRequest = { topMenuOpen = false },
+                                // Make the dropdown float neatly below the center
+                                modifier = Modifier
+                                    .wrapContentWidth()
+                                    .padding(horizontal = 12.dp, vertical = 2.dp),
+                                shape = RoundedCornerShape(20.dp),
+                                offset = DpOffset(x = 0.dp, y = 4.dp) // small spacing below button
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        IconButton(onClick = { topMenuOpen = false }) {
+                                            Icon(painter = painterResource(id = R.drawable.rounded_ios_share_24), contentDescription = "Share")
+                                        }
+                                        IconButton(onClick = { topMenuOpen = false }) {
+                                            Icon(painter = painterResource(id = R.drawable.rounded_download_24), contentDescription = "Save")
+                                        }
+                                        IconButton(onClick = { topMenuOpen = false }) {
+                                            Icon(painter = painterResource(id = R.drawable.rounded_cleaning_services_24), contentDescription = "Clear all")
+                                        }
+                                        IconButton(onClick = { topMenuOpen = false }) {
+                                            Icon(painter = painterResource(id = R.drawable.rounded_settings_24), contentDescription = "Settings")
+                                        }
+                                        IconButton(onClick = { topMenuOpen = false }) {
+                                            Icon(painter = painterResource(id = R.drawable.rounded_info_24), contentDescription = "About")
+                                        }
+                                    }
+                                }
+                            }
                         }
+
                     }
                 }
             }
@@ -926,3 +961,4 @@ private fun DrawScope.drawScribbleStroke(stroke: List<Offset>, color: Color, wid
     // Final main stroke uses baseWidth so finished strokes keep selected thickness
     drawPath(mainPath, color, style = Stroke(width = baseWidth))
 }
+
