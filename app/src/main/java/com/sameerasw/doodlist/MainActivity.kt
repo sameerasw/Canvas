@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
@@ -23,10 +24,11 @@ import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.ui.zIndex
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -55,31 +57,45 @@ data class DrawStroke(
 )
 
 class MainActivity : ComponentActivity() {
+    private val viewModel: CanvasViewModel by viewModels()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
             DoodListTheme {
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-                    CanvasApp()
+                    CanvasApp(viewModel)
                 }
             }
         }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        viewModel.save()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        viewModel.save()
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun CanvasApp() {
+fun CanvasApp(viewModel: CanvasViewModel) {
     var currentTool by remember { mutableStateOf(ToolType.PEN) }
-    val strokes = remember { mutableStateListOf<DrawStroke>() }
+    val strokes by viewModel.strokes.collectAsState()
     var expanded by remember { mutableStateOf(false) }
 
     Box(modifier = Modifier.fillMaxSize()) {
         // Canvas area - bottom layer (z-index: 0)
         DrawingCanvas(
             currentTool = currentTool,
-            strokes = strokes,
+            strokes = strokes.toMutableList(),
+            onAddStroke = { viewModel.addStroke(it) },
+            onRemoveStroke = { predicate -> viewModel.removeStroke(predicate) },
             modifier = Modifier.fillMaxSize()
         )
 
@@ -179,7 +195,9 @@ fun CanvasApp() {
 fun DrawingCanvas(
     currentTool: ToolType,
     strokes: MutableList<DrawStroke>,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onAddStroke: ((DrawStroke) -> Unit)? = null,
+    onRemoveStroke: ((predicate: (DrawStroke) -> Boolean) -> Unit)? = null
 ) {
     var scale by remember { mutableStateOf(1f) }
     var offsetX by remember { mutableStateOf(0f) }
@@ -225,7 +243,7 @@ fun DrawingCanvas(
                             }
                             ToolType.ERASER -> {
                                 // Eraser mode: remove strokes at position
-                                strokes.removeAll { stroke ->
+                                onRemoveStroke?.invoke { stroke ->
                                     stroke.points.any { point ->
                                         val distance = kotlin.math.hypot(
                                             change.position.x - point.x,
@@ -239,7 +257,8 @@ fun DrawingCanvas(
                     },
                     onDragEnd = {
                         if (currentTool == ToolType.PEN && currentStroke.size >= 2) {
-                            strokes.add(DrawStroke(currentStroke.toList(), strokeColor))
+                            val newStroke = DrawStroke(currentStroke.toList(), strokeColor)
+                            onAddStroke?.invoke(newStroke)
                         }
                         currentStroke.clear()
                     },
@@ -307,4 +326,3 @@ private fun DrawScope.drawScribbleStroke(stroke: List<Offset>, color: Color) {
     }
     drawPath(mainPath, color, style = Stroke(width = 1.5f))
 }
-

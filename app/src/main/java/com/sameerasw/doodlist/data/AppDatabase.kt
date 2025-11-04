@@ -1,12 +1,13 @@
 package com.sameerasw.doodlist.data
 
-import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import android.content.Context
 
-@Database(entities = [TaskEntity::class, StrokeEntity::class], version = 1)
+@Database(entities = [CanvasEntity::class, TaskEntity::class, StrokeEntity::class], version = 1, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
+    abstract fun canvasDao(): CanvasDao
     abstract fun taskDao(): TaskDao
     abstract fun strokeDao(): StrokeDao
 
@@ -19,7 +20,7 @@ abstract class AppDatabase : RoomDatabase() {
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
-                    "doodlist.db"
+                    "doodlist-db"
                 ).build()
                 INSTANCE = instance
                 instance
@@ -27,4 +28,3 @@ abstract class AppDatabase : RoomDatabase() {
         }
     }
 }
-

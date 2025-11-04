@@ -8,7 +8,7 @@ espressoCore = "3.7.0"
 lifecycleRuntimeKtx = "2.9.4"
 activityCompose = "1.11.0"
 composeBom = "2024.09.00"
-room = "2.5.1"
+room = "2.6.1"
 lifecycleViewModelCompose = "2.6.1"
 material3 = "1.0.0-alpha12"
 

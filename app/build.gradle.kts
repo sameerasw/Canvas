@@ -57,6 +57,9 @@ dependencies {
     implementation(libs.material3)
     kapt(libs.androidx.room.compiler)
 
+    // Gson for serializing strokes
+    implementation("com.google.code.gson:gson:2.10.1")
+
     // ViewModel Compose
     implementation(libs.androidx.lifecycle.viewmodel.compose)
 
