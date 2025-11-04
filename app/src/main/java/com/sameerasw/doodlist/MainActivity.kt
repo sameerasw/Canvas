@@ -5,24 +5,22 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Search
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.HorizontalFloatingToolbar
+import androidx.compose.material3.FloatingToolbarDefaults
+import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.ui.zIndex
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -39,12 +37,13 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.painterResource
 import com.sameerasw.doodlist.ui.theme.DoodListTheme
 import kotlin.math.abs
 import kotlin.random.Random
 
+@OptIn(ExperimentalMaterial3Api::class)
 enum class ToolType {
     HAND, PEN, ERASER
 }
@@ -69,10 +68,12 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun CanvasApp() {
     var currentTool by remember { mutableStateOf(ToolType.PEN) }
     val strokes = remember { mutableStateListOf<DrawStroke>() }
+    var expanded by remember { mutableStateOf(false) }
 
     Box(modifier = Modifier.fillMaxSize()) {
         // Canvas area - bottom layer (z-index: 0)
@@ -82,77 +83,77 @@ fun CanvasApp() {
             modifier = Modifier.fillMaxSize()
         )
 
-        // Toolbar at bottom center - top layer overlay (z-index: highest)
-        Box(
+        // HorizontalFloatingToolbar at bottom center - top layer overlay
+        HorizontalFloatingToolbar(
             modifier = Modifier
-                .fillMaxWidth()
                 .align(Alignment.BottomCenter)
-                .padding(bottom = 16.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .background(
-                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
-                        shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp)
-                    )
-                    .padding(horizontal = 8.dp, vertical = 8.dp)
-                    .align(Alignment.Center)
-            ) {
-                Row(
-                    modifier = Modifier.padding(8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                .offset(y = -FloatingToolbarDefaults.ScreenOffset)
+                .zIndex(1f),
+            expanded = expanded,
+            content = {
+                // Gesture icon (primary/center button) - toggles expansion
+                FilledIconButton(
+                    modifier = Modifier.width(64.dp),
+                    onClick = {
+                        expanded = !expanded
+                    }
                 ) {
-                    // Hand tool
-                    ToolButton(
-                        icon = Icons.Default.Search,
+                    Icon(
+                        painter = painterResource(id = R.drawable.rounded_gesture_24),
+                        contentDescription = "Toggle toolbar",
+                        tint = MaterialTheme.colorScheme.onPrimary
+                    )
+                }
+            },
+            trailingContent = {
+                // Hand tool
+                IconButton(
+                    onClick = {
+                        currentTool = ToolType.HAND
+                    }
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.rounded_back_hand_24),
                         contentDescription = "Hand tool",
-                        isSelected = currentTool == ToolType.HAND,
-                        onClick = { currentTool = ToolType.HAND }
+                        tint = if (currentTool == ToolType.HAND)
+                            MaterialTheme.colorScheme.primary
+                        else
+                            MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                }
 
-                    // Pen tool
-                    ToolButton(
-                        icon = Icons.Default.Edit,
+                // Pen tool
+                IconButton(
+                    onClick = {
+                        currentTool = ToolType.PEN
+                    }
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.rounded_stylus_fountain_pen_24),
                         contentDescription = "Pen tool",
-                        isSelected = currentTool == ToolType.PEN,
-                        onClick = { currentTool = ToolType.PEN }
+                        tint = if (currentTool == ToolType.PEN)
+                            MaterialTheme.colorScheme.primary
+                        else
+                            MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                }
 
-                    // Eraser tool
-                    ToolButton(
-                        icon = Icons.Default.Delete,
+                // Eraser tool
+                IconButton(
+                    onClick = {
+                        currentTool = ToolType.ERASER
+                    }
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.rounded_ink_eraser_24),
                         contentDescription = "Eraser tool",
-                        isSelected = currentTool == ToolType.ERASER,
-                        onClick = { currentTool = ToolType.ERASER }
+                        tint = if (currentTool == ToolType.ERASER)
+                            MaterialTheme.colorScheme.primary
+                        else
+                            MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
-        }
-    }
-}
-
-@Composable
-fun ToolButton(
-    icon: ImageVector,
-    contentDescription: String,
-    isSelected: Boolean,
-    onClick: () -> Unit
-) {
-    IconButton(
-        onClick = onClick,
-        modifier = Modifier
-            .size(48.dp)
-            .background(
-                color = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent,
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp)
-            )
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = contentDescription,
-            modifier = Modifier.size(32.dp),
-            tint = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onBackground
         )
     }
 }
