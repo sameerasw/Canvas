@@ -10,6 +10,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -35,6 +36,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -112,6 +115,7 @@ fun TaskList(tasks: List<com.sameerasw.doodlist.data.TaskEntity>, vm: TaskViewMo
 fun TaskItem(task: com.sameerasw.doodlist.data.TaskEntity, vm: TaskViewModel) {
     var textHeightPx by remember { mutableStateOf(0) }
     var showEdit by remember { mutableStateOf(false) }
+    var showContextMenu by remember { mutableStateOf(false) }
     // mutableStateListOf is not a State<T> and doesn't support property delegation with 'by'
     val restoredStrokes = remember { mutableStateListOf<List<Offset>>() }
     val scope = rememberCoroutineScope()
@@ -129,17 +133,24 @@ fun TaskItem(task: com.sameerasw.doodlist.data.TaskEntity, vm: TaskViewModel) {
     // FontFamily(Font(resId = R.font.scribble))
     val scribble = FontFamily.Default
 
-    Card(modifier = Modifier
-        .fillMaxWidth()
-        .padding(vertical = 6.dp)) {
-        Box(modifier = Modifier
-            .height(72.dp)
+    Box {
+        Card(modifier = Modifier
             .fillMaxWidth()
-            .background(Color(0xFFFFFDF5))) {
+            .padding(vertical = 6.dp)
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onLongPress = {
+                        showContextMenu = true
+                    }
+                )
+            }) {
+            Box(modifier = Modifier
+                .height(72.dp)
+                .fillMaxWidth()
+                .background(Color(0xFFFFFDF5))) {
 
-            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                // Task text and drawing overlay sits above
-                Box(modifier = Modifier.fillMaxWidth(0.75f)) {
+                // Task text and drawing overlay
+                Box(modifier = Modifier.fillMaxWidth()) {
                     Text(
                         text = task.text,
                         modifier = Modifier
@@ -170,27 +181,35 @@ fun TaskItem(task: com.sameerasw.doodlist.data.TaskEntity, vm: TaskViewModel) {
                         }
                     )
                 }
-
-                // Edit/Delete icons
-                Icon(
-                    imageVector = Icons.Default.Edit,
-                    contentDescription = "Edit",
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clickable { showEdit = true }
-                        .padding(8.dp)
-                )
-                Icon(
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = "Delete",
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clickable {
-                            vm.deleteTask(task.id)
-                        }
-                        .padding(8.dp)
-                )
             }
+        }
+
+        // Context menu on long-press
+        DropdownMenu(
+            expanded = showContextMenu,
+            onDismissRequest = { showContextMenu = false },
+            modifier = Modifier.align(Alignment.TopEnd)
+        ) {
+            DropdownMenuItem(
+                text = { Text("Edit") },
+                onClick = {
+                    showEdit = true
+                    showContextMenu = false
+                },
+                leadingIcon = {
+                    Icon(Icons.Default.Edit, contentDescription = "Edit")
+                }
+            )
+            DropdownMenuItem(
+                text = { Text("Delete") },
+                onClick = {
+                    vm.deleteTask(task.id)
+                    showContextMenu = false
+                },
+                leadingIcon = {
+                    Icon(Icons.Default.Delete, contentDescription = "Delete")
+                }
+            )
         }
     }
 
