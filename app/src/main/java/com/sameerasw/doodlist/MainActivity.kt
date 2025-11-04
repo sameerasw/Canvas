@@ -408,7 +408,7 @@ fun DrawingCanvas(
         // Draw all strokes (stored in world coords) transformed to screen coords
         strokes.forEach { stroke ->
             val screenPoints = stroke.points.map { world -> Offset(world.x * scale + offsetX, world.y * scale + offsetY) }
-            if (screenPoints.size >= 2) drawScribbleStroke(screenPoints, stroke.color)
+            if (screenPoints.size >= 2) drawScribbleStroke(screenPoints, strokeColor)
         }
 
         // Draw texts at their world positions (map to screen and scale font size)
