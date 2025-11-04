@@ -122,25 +122,49 @@ fun CanvasApp(viewModel: CanvasViewModel) {
                 .offset(y = -FloatingToolbarDefaults.ScreenOffset)
                 .zIndex(1f),
             expanded = expanded,
+            // two items on the left of the center
+            leadingContent = {
+                // Hand tool
+                IconButton(
+                    modifier = Modifier.width(if (expanded) 64.dp else 48.dp),
+                    onClick = { currentTool = ToolType.HAND }
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.rounded_back_hand_24),
+                        contentDescription = "Hand tool",
+                        tint = if (currentTool == ToolType.HAND) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.width(if (expanded) 28.dp else 24.dp)
+                    )
+                }
+
+                // Pen tool
+                IconButton(
+                    modifier = Modifier.width(if (expanded) 64.dp else 48.dp),
+                    onClick = { currentTool = ToolType.PEN }
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.rounded_stylus_fountain_pen_24),
+                        contentDescription = "Pen tool",
+                        tint = if (currentTool == ToolType.PEN) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.width(if (expanded) 28.dp else 24.dp)
+                    )
+                }
+            },
+            // center content remains the primary button
             content = {
-                // Center button - shows selected tool when collapsed, gesture when expanded
                 FilledIconButton(
                     modifier = Modifier.width(if (expanded) 72.dp else 64.dp),
-                    onClick = {
-                        expanded = !expanded
-                    }
+                    onClick = { expanded = !expanded }
                 ) {
                     Icon(
                         painter = painterResource(
-                            id = if (expanded) {
-                                R.drawable.rounded_gesture_24
-                            } else {
-                                when (currentTool) {
-                                    ToolType.HAND -> R.drawable.rounded_back_hand_24
-                                    ToolType.PEN -> R.drawable.rounded_stylus_fountain_pen_24
-                                    ToolType.ERASER -> R.drawable.rounded_ink_eraser_24
-                                    ToolType.TEXT -> R.drawable.rounded_text_fields_24
-                                }
+                            id = if (expanded) R.drawable.rounded_gesture_24 else when (currentTool) {
+                                ToolType.HAND -> R.drawable.rounded_back_hand_24
+                                ToolType.PEN -> R.drawable.rounded_stylus_fountain_pen_24
+                                ToolType.ERASER -> R.drawable.rounded_ink_eraser_24
+                                ToolType.TEXT -> R.drawable.rounded_text_fields_24
                             }
                         ),
                         contentDescription = "Toggle toolbar",
@@ -149,57 +173,18 @@ fun CanvasApp(viewModel: CanvasViewModel) {
                     )
                 }
             },
+            // two items on the right of the center
             trailingContent = {
-                // Hand tool
-                IconButton(
-                    modifier = Modifier.width(if (expanded) 64.dp else 48.dp),
-                    onClick = {
-                        currentTool = ToolType.HAND
-                    }
-                ) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.rounded_back_hand_24),
-                        contentDescription = "Hand tool",
-                        tint = if (currentTool == ToolType.HAND)
-                            MaterialTheme.colorScheme.primary
-                        else
-                            MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.width(if (expanded) 28.dp else 24.dp)
-                    )
-                }
-
-                // Pen tool
-                IconButton(
-                    modifier = Modifier.width(if (expanded) 64.dp else 48.dp),
-                    onClick = {
-                        currentTool = ToolType.PEN
-                    }
-                ) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.rounded_stylus_fountain_pen_24),
-                        contentDescription = "Pen tool",
-                        tint = if (currentTool == ToolType.PEN)
-                            MaterialTheme.colorScheme.primary
-                        else
-                            MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.width(if (expanded) 28.dp else 24.dp)
-                    )
-                }
-
                 // Eraser tool
                 IconButton(
                     modifier = Modifier.width(if (expanded) 64.dp else 48.dp),
-                    onClick = {
-                        currentTool = ToolType.ERASER
-                    }
+                    onClick = { currentTool = ToolType.ERASER }
                 ) {
                     Icon(
                         painter = painterResource(id = R.drawable.rounded_ink_eraser_24),
                         contentDescription = "Eraser tool",
-                        tint = if (currentTool == ToolType.ERASER)
-                            MaterialTheme.colorScheme.primary
-                        else
-                            MaterialTheme.colorScheme.onSurfaceVariant,
+                        tint = if (currentTool == ToolType.ERASER) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.width(if (expanded) 28.dp else 24.dp)
                     )
                 }
@@ -207,17 +192,13 @@ fun CanvasApp(viewModel: CanvasViewModel) {
                 // Text tool
                 IconButton(
                     modifier = Modifier.width(if (expanded) 64.dp else 48.dp),
-                    onClick = {
-                        currentTool = ToolType.TEXT
-                    }
+                    onClick = { currentTool = ToolType.TEXT }
                 ) {
                     Icon(
                         painter = painterResource(id = R.drawable.rounded_text_fields_24),
                         contentDescription = "Text tool",
-                        tint = if (currentTool == ToolType.TEXT)
-                            MaterialTheme.colorScheme.primary
-                        else
-                            MaterialTheme.colorScheme.onSurfaceVariant,
+                        tint = if (currentTool == ToolType.TEXT) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.width(if (expanded) 28.dp else 24.dp)
                     )
                 }
