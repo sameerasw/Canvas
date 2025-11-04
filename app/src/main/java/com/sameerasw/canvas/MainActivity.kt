@@ -13,8 +13,11 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -100,6 +103,8 @@ fun CanvasApp(viewModel: CanvasViewModel) {
     var pendingTextPosition by remember { mutableStateOf(Offset.Zero) }
     var pendingTextValue by remember { mutableStateOf("") }
     var selectedTextId by remember { mutableStateOf<Long?>(null) }
+    // show confirmation when user taps Clear in top menu
+    var showClearConfirm by remember { mutableStateOf(false) }
 
     // Canvas viewport tracking (pixels)
     var canvasScale by remember { mutableStateOf(1f) }
@@ -206,7 +211,7 @@ fun CanvasApp(viewModel: CanvasViewModel) {
                     },
                     onClear = {
                         topMenuOpen = false
-                        viewModel.clearAll()
+                        showClearConfirm = true
                     },
                     onSettings = {
                         topMenuOpen = false
@@ -219,6 +224,31 @@ fun CanvasApp(viewModel: CanvasViewModel) {
                 )
             }
         )
+
+        // Confirmation dialog for clearing canvas
+        if (showClearConfirm) {
+            AlertDialog(
+                onDismissRequest = { showClearConfirm = false },
+                title = { Text("Reset canvas?") },
+                text = { Text("This will clear all strokes and text from the canvas. This action cannot be undone.") },
+                confirmButton = {
+                    TextButton(onClick = {
+                        viewModel.clearAll()
+                        // persist the cleared state
+                        viewModel.save()
+                        showClearConfirm = false
+                        Toast.makeText(context, "Canvas cleared", Toast.LENGTH_SHORT).show()
+                    }) {
+                        Text("Reset")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showClearConfirm = false }) {
+                        Text("Cancel")
+                    }
+                }
+            )
+        }
 
         // Bottom toolbar column
         Column(
