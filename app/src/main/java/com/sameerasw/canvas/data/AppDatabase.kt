@@ -1,4 +1,4 @@
-package com.sameerasw.doodlist.data
+package com.sameerasw.canvas.data
 
 import androidx.room.Database
 import androidx.room.Room

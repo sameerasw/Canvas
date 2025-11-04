@@ -1,4 +1,4 @@
-package com.sameerasw.doodlist
+package com.sameerasw.canvas
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -10,19 +10,16 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.HorizontalFloatingToolbar
-import androidx.compose.material3.FloatingToolbarDefaults
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -41,21 +38,18 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.painterResource
-import com.sameerasw.doodlist.ui.theme.DoodListTheme
+import com.sameerasw.canvas.ui.theme.CanvasTheme
 import kotlin.math.abs
-import kotlin.random.Random
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -64,9 +58,8 @@ import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.res.ResourcesCompat
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.platform.LocalHapticFeedback
-import com.sameerasw.doodlist.utils.HapticUtil
+import com.sameerasw.canvas.utils.HapticUtil
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -92,7 +85,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            DoodListTheme {
+            CanvasTheme {
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
                     CanvasApp(viewModel)
                 }
@@ -338,13 +331,13 @@ fun CanvasApp(viewModel: CanvasViewModel) {
 fun DrawingCanvas(
     currentTool: ToolType,
     strokes: MutableList<DrawStroke>,
-    texts: List<com.sameerasw.doodlist.data.TextItem> = emptyList(),
+    texts: List<com.sameerasw.canvas.data.TextItem> = emptyList(),
     penWidth: Float = 2.5f,
     modifier: Modifier = Modifier,
     onAddStroke: ((DrawStroke) -> Unit)? = null,
     onRemoveStroke: ((predicate: (DrawStroke) -> Boolean) -> Unit)? = null,
-    onAddText: ((com.sameerasw.doodlist.data.TextItem) -> Unit)? = null,
-    onUpdateText: ((com.sameerasw.doodlist.data.TextItem) -> Unit)? = null,
+    onAddText: ((com.sameerasw.canvas.data.TextItem) -> Unit)? = null,
+    onUpdateText: ((com.sameerasw.canvas.data.TextItem) -> Unit)? = null,
     onRemoveText: ((Long) -> Unit)? = null
 ) {
     val haptics = LocalHapticFeedback.current
@@ -418,7 +411,7 @@ fun DrawingCanvas(
                         if (isMovingText && selectedTextId != null) {
                             val worldPos = Offset((change.position.x - offsetX) / scale, (change.position.y - offsetY) / scale)
                             onUpdateText?.invoke(
-                                com.sameerasw.doodlist.data.TextItem(
+                                com.sameerasw.canvas.data.TextItem(
                                     id = selectedTextId!!,
                                     x = worldPos.x,
                                     y = worldPos.y,
@@ -698,7 +691,7 @@ fun DrawingCanvas(
                     if (selectedTextId != null) {
                         // editing existing
                         onUpdateText?.invoke(
-                            com.sameerasw.doodlist.data.TextItem(
+                            com.sameerasw.canvas.data.TextItem(
                                 id = selectedTextId!!,
                                 x = pendingTextPosition.x,
                                 y = pendingTextPosition.y,
@@ -708,7 +701,7 @@ fun DrawingCanvas(
                     } else {
                         // adding new
                         onAddText?.invoke(
-                            com.sameerasw.doodlist.data.TextItem(
+                            com.sameerasw.canvas.data.TextItem(
                                 x = pendingTextPosition.x,
                                 y = pendingTextPosition.y,
                                 text = pendingTextValue

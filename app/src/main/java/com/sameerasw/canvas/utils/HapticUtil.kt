@@ -1,4 +1,4 @@
-package com.sameerasw.doodlist.utils
+package com.sameerasw.canvas.utils
 
 import androidx.compose.ui.hapticfeedback.HapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType

@@ -6,11 +6,11 @@ plugins {
 }
 
 android {
-    namespace = "com.sameerasw.doodlist"
+    namespace = "com.sameerasw.canvas"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.sameerasw.doodlist"
+        applicationId = "com.sameerasw.canvas"
         minSdk = 33
         targetSdk = 36
         versionCode = 1

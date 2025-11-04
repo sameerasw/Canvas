@@ -19,6 +19,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "DoodList"
+rootProject.name = "Canvas"
 include(":app")
- 

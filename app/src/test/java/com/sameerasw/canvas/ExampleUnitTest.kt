@@ -1,4 +1,4 @@
-package com.sameerasw.doodlist
+package com.sameerasw.canvas
 
 import org.junit.Test
 

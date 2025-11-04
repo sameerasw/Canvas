@@ -1,12 +1,12 @@
-package com.sameerasw.doodlist.ui
+package com.sameerasw.canvas.ui
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.sameerasw.doodlist.data.AppDatabase
-import com.sameerasw.doodlist.data.Repository
-import com.sameerasw.doodlist.data.StrokeEntity
-import com.sameerasw.doodlist.data.TaskEntity
+import com.sameerasw.canvas.data.AppDatabase
+import com.sameerasw.canvas.data.Repository
+import com.sameerasw.canvas.data.StrokeEntity
+import com.sameerasw.canvas.data.TaskEntity
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map

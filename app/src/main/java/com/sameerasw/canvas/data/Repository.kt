@@ -1,4 +1,4 @@
-package com.sameerasw.doodlist.data
+package com.sameerasw.canvas.data
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow

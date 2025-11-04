@@ -1,4 +1,4 @@
-package com.sameerasw.doodlist.data
+package com.sameerasw.canvas.data
 
 import android.content.Context
 import com.google.gson.Gson

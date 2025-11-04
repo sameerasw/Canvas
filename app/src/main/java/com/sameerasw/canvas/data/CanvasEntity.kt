@@ -1,4 +1,4 @@
-package com.sameerasw.doodlist.data
+package com.sameerasw.canvas.data
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
