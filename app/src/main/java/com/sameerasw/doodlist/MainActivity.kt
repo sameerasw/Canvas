@@ -91,23 +91,35 @@ fun CanvasApp() {
                 .zIndex(1f),
             expanded = expanded,
             content = {
-                // Gesture icon (primary/center button) - toggles expansion
+                // Center button - shows selected tool when collapsed, gesture when expanded
                 FilledIconButton(
-                    modifier = Modifier.width(64.dp),
+                    modifier = Modifier.width(if (expanded) 72.dp else 64.dp),
                     onClick = {
                         expanded = !expanded
                     }
                 ) {
                     Icon(
-                        painter = painterResource(id = R.drawable.rounded_gesture_24),
+                        painter = painterResource(
+                            id = if (expanded) {
+                                R.drawable.rounded_gesture_24
+                            } else {
+                                when (currentTool) {
+                                    ToolType.HAND -> R.drawable.rounded_back_hand_24
+                                    ToolType.PEN -> R.drawable.rounded_stylus_fountain_pen_24
+                                    ToolType.ERASER -> R.drawable.rounded_ink_eraser_24
+                                }
+                            }
+                        ),
                         contentDescription = "Toggle toolbar",
-                        tint = MaterialTheme.colorScheme.onPrimary
+                        tint = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.width(if (expanded) 32.dp else 24.dp)
                     )
                 }
             },
             trailingContent = {
                 // Hand tool
                 IconButton(
+                    modifier = Modifier.width(if (expanded) 64.dp else 48.dp),
                     onClick = {
                         currentTool = ToolType.HAND
                     }
@@ -118,12 +130,14 @@ fun CanvasApp() {
                         tint = if (currentTool == ToolType.HAND)
                             MaterialTheme.colorScheme.primary
                         else
-                            MaterialTheme.colorScheme.onSurfaceVariant
+                            MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.width(if (expanded) 28.dp else 24.dp)
                     )
                 }
 
                 // Pen tool
                 IconButton(
+                    modifier = Modifier.width(if (expanded) 64.dp else 48.dp),
                     onClick = {
                         currentTool = ToolType.PEN
                     }
@@ -134,12 +148,14 @@ fun CanvasApp() {
                         tint = if (currentTool == ToolType.PEN)
                             MaterialTheme.colorScheme.primary
                         else
-                            MaterialTheme.colorScheme.onSurfaceVariant
+                            MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.width(if (expanded) 28.dp else 24.dp)
                     )
                 }
 
                 // Eraser tool
                 IconButton(
+                    modifier = Modifier.width(if (expanded) 64.dp else 48.dp),
                     onClick = {
                         currentTool = ToolType.ERASER
                     }
@@ -150,7 +166,8 @@ fun CanvasApp() {
                         tint = if (currentTool == ToolType.ERASER)
                             MaterialTheme.colorScheme.primary
                         else
-                            MaterialTheme.colorScheme.onSurfaceVariant
+                            MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.width(if (expanded) 28.dp else 24.dp)
                     )
                 }
             }
