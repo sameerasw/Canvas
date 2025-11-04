@@ -47,6 +47,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.pointerInput
@@ -69,6 +70,7 @@ import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.atan2
 import kotlin.math.hypot
+import kotlin.random.Random
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -267,6 +269,7 @@ fun DrawingOverlay(
     val points = remember { mutableStateListOf<Offset>() }
     var canvasSize by remember { mutableStateOf(IntSize(0, 0)) }
     val strokeColor = MaterialTheme.colorScheme.onBackground
+    var isValidDrawing by remember { mutableStateOf(true) }
 
     Canvas(modifier = modifier
         .onSizeChanged { canvasSize = it }
@@ -275,13 +278,28 @@ fun DrawingOverlay(
                 onDragStart = { offset: Offset ->
                     points.clear()
                     points.add(offset)
+                    isValidDrawing = true
                 },
                 onDrag = { change: PointerInputChange, _: Offset ->
                     points.add(change.position)
-                    change.consume()
+
+                    // Check if movement is primarily vertical (vertical scroll)
+                    if (points.size >= 2) {
+                        val totalDx = abs(points.last().x - points.first().x)
+                        val totalDy = abs(points.last().y - points.first().y)
+
+                        // If vertical movement is significant compared to horizontal, it's a scroll
+                        if (totalDy > totalDx * 0.5f) {
+                            // This is a vertical scroll, don't consume and mark as invalid
+                            isValidDrawing = false
+                        } else {
+                            // Horizontal movement, consume the event
+                            change.consume()
+                        }
+                    }
                 },
                 onDragEnd = {
-                    if (points.size >= 2) {
+                    if (points.size >= 2 && isValidDrawing) {
                         val start = points.first()
                         val end = points.last()
                         val dx = end.x - start.x
@@ -298,37 +316,82 @@ fun DrawingOverlay(
                         val canvasCenterY = canvasSize.height / 2f
                         val intersectsText = (maxY >= (canvasCenterY - textHeight / 2f) && minY <= (canvasCenterY + textHeight / 2f))
 
-                        // tuned heuristics: require at least 60% width and angle within 20deg and moderate speed (not enforced here)
-                        if (coverageRatio > 0.6f && abs(ang) < 20f && intersectsText && length > 40f) {
+                        // Only accept horizontal strokes (roughly left to right, angle near 0 degrees)
+                        // Accept angles between -20 and 20 degrees (left to right)
+                        // Also check for right to left (160-200 degrees) but we can be strict about left-to-right
+                        val isHorizontal = abs(ang) < 25f
+                        val isLeftToRight = dx > 0 // Ensure movement is left to right (positive dx)
+
+                        // tuned heuristics: require at least 60% width coverage, horizontal direction, intersects text, and sufficient length
+                        if (coverageRatio > 0.6f && isHorizontal && isLeftToRight && intersectsText && length > 40f) {
                             onStrokeComplete(points.toList())
                         }
                     }
                     points.clear()
+                    isValidDrawing = true
                 },
-                onDragCancel = { points.clear() }
+                onDragCancel = {
+                    points.clear()
+                    isValidDrawing = true
+                }
             )
         }
     ) {
-        // draw restored strokes with pencil-like appearance
+        // draw restored strokes with scribble and pressure effect
         restoredStrokes.forEach { stroke ->
-            if (stroke.size >= 2) {
-                val path = Path().apply {
-                    moveTo(stroke.first().x, stroke.first().y)
-                    stroke.drop(1).forEach { lineTo(it.x, it.y) }
-                }
-                drawPath(path, strokeColor, style = Stroke(width = 3f))
+            drawScribbleStroke(stroke, strokeColor)
+        }
+
+        // draw live stroke with scribble and pressure effect (only if valid drawing)
+        if (points.isNotEmpty() && isValidDrawing) {
+            drawScribbleStroke(points.toList(), strokeColor)
+        }
+    }
+}
+
+// Helper function to draw strokes with scribble effect and variable pressure
+private fun DrawScope.drawScribbleStroke(stroke: List<Offset>, color: Color) {
+    if (stroke.size < 2) return
+
+    val random = Random(42) // Use seed for consistency
+
+    // Create multiple overlapping paths with varying offsets for scribble effect
+    val scribbleOffsets = listOf(-1.2f, -0.6f, 0f, 0.6f, 1.2f)
+    val baseWidth = 2.5f
+
+    scribbleOffsets.forEachIndexed { offsetIndex, scribbleOffset ->
+        val path = Path().apply {
+            moveTo(stroke.first().x + scribbleOffset, stroke.first().y + scribbleOffset)
+
+            for (i in 1 until stroke.size) {
+                val current = stroke[i]
+
+                // Calculate stroke randomness for scribble effect - increased raggedness
+                val randomOffsetX = (random.nextFloat() - 0.5f) * 1.5f * (6 - abs(offsetIndex - 2))
+                val randomOffsetY = (random.nextFloat() - 0.5f) * 1.5f * (6 - abs(offsetIndex - 2))
+
+                val scribbledX = current.x + scribbleOffset + randomOffsetX
+                val scribbledY = current.y + scribbleOffset + randomOffsetY
+
+                lineTo(scribbledX, scribbledY)
             }
         }
 
-        // draw live stroke with pencil-like appearance
-        if (points.isNotEmpty()) {
-            val path = Path().apply {
-                moveTo(points.first().x, points.first().y)
-                for (i in 1 until points.size) lineTo(points[i].x, points[i].y)
-            }
-            drawPath(path, strokeColor, style = Stroke(width = 3f))
+        // Calculate dynamic width based on offset (wider in middle, thinner at edges)
+        val widthFactor = 1f - (abs(offsetIndex - 2) * 0.15f)
+        val strokeWidth = baseWidth * widthFactor
+
+        drawPath(path, color.copy(alpha = 0.65f + 0.35f * widthFactor), style = Stroke(width = strokeWidth))
+    }
+
+    // Add one final centered path with full opacity for definition
+    val mainPath = Path().apply {
+        moveTo(stroke.first().x, stroke.first().y)
+        for (i in 1 until stroke.size) {
+            lineTo(stroke[i].x, stroke[i].y)
         }
     }
+    drawPath(mainPath, color, style = Stroke(width = 1.5f))
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
