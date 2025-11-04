@@ -24,8 +24,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import com.sameerasw.canvas.model.ToolType
 import com.sameerasw.canvas.ui.components.PenWidthOptionsPanel
@@ -98,6 +101,12 @@ fun CanvasApp(viewModel: CanvasViewModel) {
     var pendingTextValue by remember { mutableStateOf("") }
     var selectedTextId by remember { mutableStateOf<Long?>(null) }
 
+    // Canvas viewport tracking (pixels)
+    var canvasScale by remember { mutableStateOf(1f) }
+    var canvasOffsetX by remember { mutableStateOf(0f) }
+    var canvasOffsetY by remember { mutableStateOf(0f) }
+    var canvasViewSize by remember { mutableStateOf(IntSize(1, 1)) }
+
     val haptics = LocalHapticFeedback.current
     val context = LocalContext.current
 
@@ -109,7 +118,11 @@ fun CanvasApp(viewModel: CanvasViewModel) {
             texts = texts,
             penWidth = penWidth,
             textSize = textSize,
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .onSizeChanged { size ->
+                    canvasViewSize = size
+                },
             onAddStroke = { viewModel.addStroke(it) },
             onRemoveStroke = { predicate -> viewModel.removeStroke(predicate) },
             onAddText = { viewModel.addText(it) },
@@ -126,6 +139,11 @@ fun CanvasApp(viewModel: CanvasViewModel) {
             onShowTextOptions = { show, id ->
                 if (show) selectedTextId = id
                 showTextOptions = show
+            },
+            onUpdateCanvasTransform = { scale, offX, offY ->
+                canvasScale = scale
+                canvasOffsetX = offX
+                canvasOffsetY = offY
             }
         )
 
@@ -144,82 +162,45 @@ fun CanvasApp(viewModel: CanvasViewModel) {
                     visible = topMenuOpen,
                     onShare = {
                         topMenuOpen = false
-                        val ts = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
-                        val filename = "doodlist_$ts.png"
                         CoroutineScope(Dispatchers.Main).launch {
-                            val bmp = BitmapExportHelper.createBitmapFromData(context, strokes, texts)
+                            val ts = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
+                            val filename = "doodlist_full_$ts.png"
+                            val bmp = BitmapExportHelper.createBitmapFromData(context, strokes, texts, outputWidth = canvasViewSize.width.coerceAtLeast(1), outputHeight = canvasViewSize.height.coerceAtLeast(1))
                             if (bmp != null) {
-                                val uri = BitmapStorageHelper.saveBitmapToCacheAndGetUri(
-                                    context,
-                                    bmp,
-                                    filename,
-                                    android.graphics.Bitmap.CompressFormat.PNG
-                                )
+                                val uri = BitmapStorageHelper.saveBitmapToCacheAndGetUri(context, bmp, filename, android.graphics.Bitmap.CompressFormat.PNG)
                                 if (uri != null) {
-                                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                                        putExtra(Intent.EXTRA_STREAM, uri)
-                                        type = "image/png"
-                                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                    val intent = Intent(context, CropActivity::class.java).apply {
+                                        putExtra("image_uri", uri.toString())
+                                        putExtra("is_share", true)
                                     }
-                                    try {
-                                        context.startActivity(
-                                            Intent.createChooser(shareIntent, "Share image")
-                                        )
-                                    } catch (_: Exception) {
-                                        Toast.makeText(
-                                            context,
-                                            "No app available to share image",
-                                            Toast.LENGTH_SHORT
-                                        ).show()
-                                    }
+                                    context.startActivity(intent)
                                 } else {
-                                    Toast.makeText(
-                                        context,
-                                        "Failed to export image",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
+                                    Toast.makeText(context, "Failed to export image", Toast.LENGTH_SHORT).show()
                                 }
                             } else {
-                                Toast.makeText(
-                                    context,
-                                    "Nothing to export",
-                                    Toast.LENGTH_SHORT
-                                ).show()
+                                Toast.makeText(context, "Nothing to export", Toast.LENGTH_SHORT).show()
                             }
                         }
                     },
                     onSave = {
                         topMenuOpen = false
-                        val ts = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
-                        val filename = "doodlist_$ts.png"
                         CoroutineScope(Dispatchers.Main).launch {
-                            val bmp = BitmapExportHelper.createBitmapFromData(context, strokes, texts)
+                            val ts = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
+                            val filename = "doodlist_full_$ts.png"
+                            val bmp = BitmapExportHelper.createBitmapFromData(context, strokes, texts, outputWidth = canvasViewSize.width.coerceAtLeast(1), outputHeight = canvasViewSize.height.coerceAtLeast(1))
                             if (bmp != null) {
-                                val uri = BitmapStorageHelper.saveBitmapToDownloads(
-                                    context,
-                                    bmp,
-                                    filename,
-                                    android.graphics.Bitmap.CompressFormat.PNG
-                                )
+                                val uri = BitmapStorageHelper.saveBitmapToCacheAndGetUri(context, bmp, filename, android.graphics.Bitmap.CompressFormat.PNG)
                                 if (uri != null) {
-                                    Toast.makeText(
-                                        context,
-                                        "Saved to Downloads",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
+                                    val intent = Intent(context, CropActivity::class.java).apply {
+                                        putExtra("image_uri", uri.toString())
+                                        putExtra("is_share", false)
+                                    }
+                                    context.startActivity(intent)
                                 } else {
-                                    Toast.makeText(
-                                        context,
-                                        "Failed to save image",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
+                                    Toast.makeText(context, "Failed to export image", Toast.LENGTH_SHORT).show()
                                 }
                             } else {
-                                Toast.makeText(
-                                    context,
-                                    "Nothing to save",
-                                    Toast.LENGTH_SHORT
-                                ).show()
+                                Toast.makeText(context, "Nothing to save", Toast.LENGTH_SHORT).show()
                             }
                         }
                     },
@@ -396,4 +377,3 @@ fun CanvasApp(viewModel: CanvasViewModel) {
         }
     )
 }
-

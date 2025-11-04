@@ -76,5 +76,101 @@ object BitmapExportHelper {
 
         return@withContext bmp
     }
-}
 
+    // Renders strokes/texts onto a bitmap sized to viewWidth x viewHeight using the provided
+    // transform (scale + offsets), then crops the given rectangle (in view pixel coords) and
+    // scales the cropped region to outputWidth/outputHeight.
+    suspend fun createBitmapFromDataWithViewport(
+        context: Context,
+        strokes: List<DrawStroke>,
+        texts: List<TextItem>,
+        viewWidth: Int,
+        viewHeight: Int,
+        transformScale: Float,
+        transformOffsetX: Float,
+        transformOffsetY: Float,
+        cropLeft: Int,
+        cropTop: Int,
+        cropWidth: Int,
+        cropHeight: Int,
+        outputWidth: Int,
+        outputHeight: Int
+    ): Bitmap? = withContext(Dispatchers.Default) {
+        if (strokes.isEmpty() && texts.isEmpty()) return@withContext null
+
+        // Render full view-sized bitmap that matches the on-screen canvas rendering
+        val full = Bitmap.createBitmap(viewWidth.coerceAtLeast(1), viewHeight.coerceAtLeast(1), Bitmap.Config.ARGB_8888)
+        val canvas = AndroidCanvas(full)
+        canvas.drawColor(android.graphics.Color.WHITE)
+
+        val paint = Paint().apply {
+            isAntiAlias = true
+            style = Paint.Style.STROKE
+            strokeCap = Paint.Cap.ROUND
+            strokeJoin = Paint.Join.ROUND
+        }
+
+        strokes.forEach { s ->
+            if (s.points.size < 2) return@forEach
+            paint.color = s.color.toArgb()
+            // scale stroke width by transformScale
+            paint.strokeWidth = s.width * transformScale
+
+            val path = AndroidPath()
+            val pts = s.points
+            // Convert world coordinates -> view pixels: x * scale + offsetX
+            path.moveTo(pts.first().x * transformScale + transformOffsetX, pts.first().y * transformScale + transformOffsetY)
+            for (i in 1 until pts.size) {
+                val prev = pts[i - 1]
+                val curr = pts[i]
+                val prevX = prev.x * transformScale + transformOffsetX
+                val prevY = prev.y * transformScale + transformOffsetY
+                val currX = curr.x * transformScale + transformOffsetX
+                val currY = curr.y * transformScale + transformOffsetY
+                val midX = (prevX + currX) / 2f
+                val midY = (prevY + currY) / 2f
+                path.quadTo(prevX, prevY, midX, midY)
+            }
+            val last = pts.last()
+            path.lineTo(last.x * transformScale + transformOffsetX, last.y * transformScale + transformOffsetY)
+            canvas.drawPath(path, paint)
+        }
+
+        val textPaint = Paint().apply {
+            isAntiAlias = true
+            style = Paint.Style.FILL
+            color = android.graphics.Color.BLACK
+        }
+
+        texts.forEach { t ->
+            textPaint.textSize = t.size * transformScale
+            try {
+                val tf: Typeface? = ResourcesCompat.getFont(context, R.font.font)
+                if (tf != null) textPaint.typeface = tf
+            } catch (_: Exception) { }
+
+            val sx = t.x * transformScale + transformOffsetX
+            val sy = t.y * transformScale + transformOffsetY
+            val fm = textPaint.fontMetrics
+            val baseline = sy - fm.ascent
+            canvas.drawText(t.text, sx, baseline, textPaint)
+        }
+
+        // Clip crop rect to bitmap bounds
+        val left = cropLeft.coerceIn(0, full.width - 1)
+        val top = cropTop.coerceIn(0, full.height - 1)
+        val w = cropWidth.coerceIn(1, full.width - left)
+        val h = cropHeight.coerceIn(1, full.height - top)
+
+        val cropped = Bitmap.createBitmap(full, left, top, w, h)
+
+        // Scale to desired output size
+        val out = Bitmap.createScaledBitmap(cropped, outputWidth.coerceAtLeast(1), outputHeight.coerceAtLeast(1), true)
+
+        // Recycle intermediates to save memory
+        if (cropped != out) cropped.recycle()
+        full.recycle()
+
+        return@withContext out
+    }
+}

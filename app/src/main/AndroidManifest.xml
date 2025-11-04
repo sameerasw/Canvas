@@ -23,6 +23,12 @@
             </intent-filter>
         </activity>
 
+        <!-- CropActivity: separate activity that shows the exported image and lets the user pick a crop -->
+        <activity
+            android:name=".CropActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Canvas" />
+
         <!-- FileProvider for sharing temporary image files -->
         <provider
             android:name="androidx.core.content.FileProvider"
