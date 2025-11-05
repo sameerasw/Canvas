@@ -22,7 +22,6 @@ import com.sameerasw.canvas.utils.HapticUtil
 fun TopMenuButtons(
     visible: Boolean,
     onShare: () -> Unit,
-    onSave: () -> Unit,
     onClear: () -> Unit,
     onSettings: () -> Unit,
     onAbout: () -> Unit
@@ -49,16 +48,6 @@ fun TopMenuButtons(
                 Icon(
                     painter = painterResource(id = R.drawable.rounded_ios_share_24),
                     contentDescription = "Share"
-                )
-            }
-
-            IconButton(onClick = {
-                HapticUtil.performClick(haptics)
-                onSave()
-            }) {
-                Icon(
-                    painter = painterResource(id = R.drawable.rounded_download_24),
-                    contentDescription = "Save"
                 )
             }
 

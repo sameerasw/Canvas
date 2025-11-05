@@ -8,6 +8,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -156,14 +157,6 @@ class CropActivity : ComponentActivity() {
                                     }
                             )
 
-                            // top hint text
-                            Text(
-                                text = "Crop to continue",
-                                color = MaterialTheme.colorScheme.onBackground,
-                                modifier = Modifier
-                                    .align(Alignment.TopCenter)
-                                    .padding(top = 16.dp)
-                            )
 
                             // Fixed centered square overlay size (80% of the minimum axis)
                             val squareSize = minOf(boxWidth, boxHeight) * 0.8f
@@ -211,83 +204,86 @@ class CropActivity : ComponentActivity() {
                             // Bottom buttons: Cancel and Confirm centered
                             Column(
                                 modifier = Modifier
-                                    .fillMaxSize(),
+                                    .background(MaterialTheme.colorScheme.surfaceContainer),
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = androidx.compose.foundation.layout.Arrangement.Bottom
                             ) {
                                 Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
+                                        .padding(bottom = 16.dp),
+                                    horizontalArrangement = androidx.compose.foundation.layout.Arrangement.Center
+                                ) {
+                                    Text(
+                                        text = "Crop to continue",
+                                        color = MaterialTheme.colorScheme.onBackground
+                                    )
+                                }
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
                                         .padding(bottom = 24.dp),
                                     horizontalArrangement = androidx.compose.foundation.layout.Arrangement.Center
                                 ) {
-                                    Button(
-                                        onClick = { HapticUtil.performClick(haptics); finish() },
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = MaterialTheme.colorScheme.secondary,
-                                            contentColor = MaterialTheme.colorScheme.onSecondary
-                                        )
-                                    ) {
-                                        Text("Cancel")
-                                    }
-                                    androidx.compose.foundation.layout.Spacer(modifier = Modifier.size(16.dp))
-                                    Button(
-                                        onClick = {
-                                            HapticUtil.performClick(haptics)
-                                            // perform crop based on fixed square
-                                            scope.launch {
-                                                // compute requested crop in bitmap pixel coordinates
-                                                val reqLeftView = squareLeft
-                                                val reqTopView = squareTop
-                                                val reqWView = squareSize
-                                                val reqHView = squareSize
+                                    if (isShare) {
+                                        // When sharing, show Cancel | Save | Share
+                                        Button(
+                                            onClick = { HapticUtil.performClick(haptics); finish() },
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = MaterialTheme.colorScheme.secondary,
+                                                contentColor = MaterialTheme.colorScheme.onSecondary
+                                            )
+                                        ) {
+                                            Text("Cancel")
+                                        }
+                                        androidx.compose.foundation.layout.Spacer(modifier = Modifier.size(12.dp))
 
-                                                val scalePxPerBitmap = baseScale * transformScale
-                                                val reqLeftBitmapF = (reqLeftView - imageLeft) / scalePxPerBitmap
-                                                val reqTopBitmapF = (reqTopView - imageTop) / scalePxPerBitmap
-                                                val reqWBitmapF = reqWView / scalePxPerBitmap
-                                                val reqHBitmapF = reqHView / scalePxPerBitmap
-
-                                                val reqLeftBitmap = reqLeftBitmapF.toInt()
-                                                val reqTopBitmap = reqTopBitmapF.toInt()
-                                                val reqWBitmap = reqWBitmapF.toInt()
-                                                val reqHBitmap = reqHBitmapF.toInt()
-
-                                                // Intersection with source bitmap
-                                                val srcLeft = reqLeftBitmap.coerceAtLeast(0)
-                                                val srcTop = reqTopBitmap.coerceAtLeast(0)
-                                                val srcRight = (reqLeftBitmap + reqWBitmap).coerceAtMost(bmp.width)
-                                                val srcBottom = (reqTopBitmap + reqHBitmap).coerceAtMost(bmp.height)
-
-                                                val srcW = srcRight - srcLeft
-                                                val srcH = srcBottom - srcTop
-
-                                                if (srcW <= 0 || srcH <= 0) {
-                                                    // nothing overlapped
-                                                    Toast.makeText(context, "Nothing to export", Toast.LENGTH_SHORT).show()
-                                                    return@launch
+                                        Button(
+                                            onClick = {
+                                                HapticUtil.performClick(haptics)
+                                                // perform crop and save to Downloads but keep activity open
+                                                scope.launch {
+                                                    val outBmp = performCropAndCreateBitmap(bmp, squareLeft, squareTop, squareSize, imageLeft, imageTop, baseScale, transformScale)
+                                                    if (outBmp == null) {
+                                                        Toast.makeText(context, "Nothing to export", Toast.LENGTH_SHORT).show()
+                                                        return@launch
+                                                    }
+                                                    try {
+                                                        val ts = java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.US).format(java.util.Date())
+                                                        val filename = "canvas_crop_$ts.png"
+                                                        val uri = BitmapStorageHelper.saveBitmapToDownloads(context, outBmp, filename, android.graphics.Bitmap.CompressFormat.PNG)
+                                                        if (uri != null) {
+                                                            Toast.makeText(context, "Saved to Downloads", Toast.LENGTH_SHORT).show()
+                                                        } else {
+                                                            Toast.makeText(context, "Failed to save image", Toast.LENGTH_SHORT).show()
+                                                        }
+                                                    } catch (_: Exception) {
+                                                        Toast.makeText(context, "Failed to save image", Toast.LENGTH_SHORT).show()
+                                                    }
                                                 }
+                                            },
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                                contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                                            )
+                                        ) {
+                                            Text("Save")
+                                        }
+                                        androidx.compose.foundation.layout.Spacer(modifier = Modifier.size(12.dp))
 
-                                                // Create output bitmap of requested size and draw the intersected portion at the correct offset
-                                                val outW = reqWBitmap.coerceAtLeast(1)
-                                                val outH = reqHBitmap.coerceAtLeast(1)
-                                                val outBmp = createBitmap(outW, outH)
-                                                val canvas = android.graphics.Canvas(outBmp)
-                                                canvas.drawColor(android.graphics.Color.WHITE)
-
-                                                val dstLeft = (srcLeft - reqLeftBitmap)
-                                                val dstTop = (srcTop - reqTopBitmap)
-
-                                                val srcRect = AndroidRect(srcLeft, srcTop, srcRight, srcBottom)
-                                                val dstRect = AndroidRect(dstLeft, dstTop, dstLeft + srcW, dstTop + srcH)
-
-                                                canvas.drawBitmap(bmp, srcRect, dstRect, null)
-
-                                                // Save / share
-                                                try {
-                                                    val ts = java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.US).format(java.util.Date())
-                                                    val filename = "canvas_crop_$ts.png"
-                                                    if (isShare) {
+                                        Button(
+                                            onClick = {
+                                                HapticUtil.performClick(haptics)
+                                                // perform crop and share, then finish
+                                                scope.launch {
+                                                    val outBmp = performCropAndCreateBitmap(bmp, squareLeft, squareTop, squareSize, imageLeft, imageTop, baseScale, transformScale)
+                                                    if (outBmp == null) {
+                                                        Toast.makeText(context, "Nothing to export", Toast.LENGTH_SHORT).show()
+                                                        return@launch
+                                                    }
+                                                    try {
+                                                        val ts = java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.US).format(java.util.Date())
+                                                        val filename = "canvas_crop_$ts.png"
                                                         val uri = BitmapStorageHelper.saveBitmapToCacheAndGetUri(context, outBmp, filename, android.graphics.Bitmap.CompressFormat.PNG)
                                                         if (uri != null) {
                                                             val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
@@ -303,34 +299,123 @@ class CropActivity : ComponentActivity() {
                                                         } else {
                                                             Toast.makeText(context, "Failed to export image", Toast.LENGTH_SHORT).show()
                                                         }
-                                                    } else {
+                                                    } catch (_: Exception) {
+                                                        Toast.makeText(context, "Failed to process image", Toast.LENGTH_SHORT).show()
+                                                    } finally {
+                                                        finish()
+                                                    }
+                                                }
+                                            },
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = MaterialTheme.colorScheme.primary,
+                                                contentColor = MaterialTheme.colorScheme.onPrimary
+                                            )
+                                        ) {
+                                            Text("Share")
+                                        }
+                                    } else {
+                                        // Non-share flow: existing Cancel + Save (finish after saving)
+                                        Button(
+                                            onClick = { HapticUtil.performClick(haptics); finish() },
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = MaterialTheme.colorScheme.secondary,
+                                                contentColor = MaterialTheme.colorScheme.onSecondary
+                                            )
+                                        ) {
+                                            Text("Cancel")
+                                        }
+                                        androidx.compose.foundation.layout.Spacer(modifier = Modifier.size(16.dp))
+                                        Button(
+                                            onClick = {
+                                                HapticUtil.performClick(haptics)
+                                                scope.launch {
+                                                    val outBmp = performCropAndCreateBitmap(bmp, squareLeft, squareTop, squareSize, imageLeft, imageTop, baseScale, transformScale)
+                                                    if (outBmp == null) {
+                                                        Toast.makeText(context, "Nothing to export", Toast.LENGTH_SHORT).show()
+                                                        return@launch
+                                                    }
+                                                    try {
+                                                        val ts = java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.US).format(java.util.Date())
+                                                        val filename = "canvas_crop_$ts.png"
                                                         val uri = BitmapStorageHelper.saveBitmapToDownloads(context, outBmp, filename, android.graphics.Bitmap.CompressFormat.PNG)
                                                         if (uri != null) {
                                                             Toast.makeText(context, "Saved to Downloads", Toast.LENGTH_SHORT).show()
                                                         } else {
                                                             Toast.makeText(context, "Failed to save image", Toast.LENGTH_SHORT).show()
                                                         }
+                                                    } catch (_: Exception) {
+                                                        Toast.makeText(context, "Failed to save image", Toast.LENGTH_SHORT).show()
+                                                    } finally {
+                                                        finish()
                                                     }
-                                                } catch (_: Exception) {
-                                                    Toast.makeText(context, "Failed to process image", Toast.LENGTH_SHORT).show()
-                                                } finally {
-                                                    finish()
                                                 }
-                                            }
-                                        },
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = MaterialTheme.colorScheme.primary,
-                                            contentColor = MaterialTheme.colorScheme.onPrimary
-                                        )
-                                    ) {
-                                        Text(if (isShare) "Share" else "Save")
+                                            },
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = MaterialTheme.colorScheme.primary,
+                                                contentColor = MaterialTheme.colorScheme.onPrimary
+                                            )
+                                        ) {
+                                            Text("Save")
+                                        }
                                     }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+                                 }
+                             }
+                         }
+                     }
+                 }
+             }
+         }
+     }
+ }
+
+// compute and return the cropped bitmap, or null on failure
+private suspend fun performCropAndCreateBitmap(
+    bmp: android.graphics.Bitmap,
+    squareLeft: Float,
+    squareTop: Float,
+    squareSize: Float,
+    imageLeft: Float,
+    imageTop: Float,
+    baseScale: Float,
+    transformScale: Float
+): android.graphics.Bitmap? {
+    return withContext(Dispatchers.Default) {
+        try {
+            val scalePxPerBitmap = baseScale * transformScale
+            val reqLeftBitmapF = (squareLeft - imageLeft) / scalePxPerBitmap
+            val reqTopBitmapF = (squareTop - imageTop) / scalePxPerBitmap
+            val reqWBitmapF = squareSize / scalePxPerBitmap
+            val reqHBitmapF = squareSize / scalePxPerBitmap
+
+            val reqLeftBitmap = reqLeftBitmapF.toInt()
+            val reqTopBitmap = reqTopBitmapF.toInt()
+            val reqWBitmap = reqWBitmapF.toInt()
+            val reqHBitmap = reqHBitmapF.toInt()
+
+            val srcLeft = reqLeftBitmap.coerceAtLeast(0)
+            val srcTop = reqTopBitmap.coerceAtLeast(0)
+            val srcRight = (reqLeftBitmap + reqWBitmap).coerceAtMost(bmp.width)
+            val srcBottom = (reqTopBitmap + reqHBitmap).coerceAtMost(bmp.height)
+
+            val srcW = srcRight - srcLeft
+            val srcH = srcBottom - srcTop
+            if (srcW <= 0 || srcH <= 0) return@withContext null
+
+            val outW = reqWBitmap.coerceAtLeast(1)
+            val outH = reqHBitmap.coerceAtLeast(1)
+            val outBmp = createBitmap(outW, outH)
+            val canvas = android.graphics.Canvas(outBmp)
+            canvas.drawColor(android.graphics.Color.WHITE)
+
+            val dstLeft = (srcLeft - reqLeftBitmap)
+            val dstTop = (srcTop - reqTopBitmap)
+            val srcRect = AndroidRect(srcLeft, srcTop, srcRight, srcBottom)
+            val dstRect = AndroidRect(dstLeft, dstTop, dstLeft + srcW, dstTop + srcH)
+            canvas.drawBitmap(bmp, srcRect, dstRect, null)
+
+            outBmp
+        } catch (_: Exception) {
+            null
         }
     }
 }

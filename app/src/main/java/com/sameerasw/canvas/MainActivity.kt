@@ -198,28 +198,6 @@ fun CanvasApp(viewModel: CanvasViewModel) {
                             }
                         }
                     },
-                    onSave = {
-                        topMenuOpen = false
-                        CoroutineScope(Dispatchers.Main).launch {
-                            val ts = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
-                            val filename = "canvas_full_$ts.png"
-                            val bmp = BitmapExportHelper.createBitmapFromData(context, strokes, texts, outputWidth = canvasViewSize.width.coerceAtLeast(1), outputHeight = canvasViewSize.height.coerceAtLeast(1))
-                            if (bmp != null) {
-                                val uri = BitmapStorageHelper.saveBitmapToCacheAndGetUri(context, bmp, filename, android.graphics.Bitmap.CompressFormat.PNG)
-                                if (uri != null) {
-                                    val intent = Intent(context, CropActivity::class.java).apply {
-                                        putExtra("image_uri", uri.toString())
-                                        putExtra("is_share", false)
-                                    }
-                                    context.startActivity(intent)
-                                } else {
-                                    Toast.makeText(context, "Failed to export image", Toast.LENGTH_SHORT).show()
-                                }
-                            } else {
-                                Toast.makeText(context, "Nothing to save", Toast.LENGTH_SHORT).show()
-                            }
-                        }
-                    },
                     onClear = {
                         topMenuOpen = false
                         showClearConfirm = true
