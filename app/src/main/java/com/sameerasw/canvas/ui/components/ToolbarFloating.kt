@@ -1,7 +1,10 @@
 package com.sameerasw.canvas.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledIconButton
@@ -33,7 +36,7 @@ fun ToolbarFloating(
         leadingContent = {
             // Hand tool
             IconButton(
-                modifier = Modifier.width(if (expanded) 64.dp else 48.dp),
+                modifier = Modifier.width(if (expanded) 64.dp else 48.dp).then(if (currentTool == ToolType.HAND) Modifier.border(1.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(24.dp)) else Modifier),
                 onClick = onHandTool
             ) {
                 Icon(
@@ -45,9 +48,11 @@ fun ToolbarFloating(
                 )
             }
 
+            Spacer(modifier = Modifier.width(if (expanded) 8.dp else 4.dp))
+
             // Pen tool
             IconButton(
-                modifier = Modifier.width(if (expanded) 64.dp else 48.dp),
+                modifier = Modifier.width(if (expanded) 64.dp else 48.dp).then(if (currentTool == ToolType.PEN) Modifier.border(1.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(24.dp)) else Modifier),
                 onClick = onPenTool
             ) {
                 Icon(
@@ -58,6 +63,8 @@ fun ToolbarFloating(
                     modifier = Modifier.width(if (expanded) 28.dp else 24.dp)
                 )
             }
+
+            Spacer(modifier = Modifier.width(if (expanded) 8.dp else 4.dp))
         },
         content = {
             FilledIconButton(
@@ -80,9 +87,12 @@ fun ToolbarFloating(
             }
         },
         trailingContent = {
+
+            Spacer(modifier = Modifier.width(if (expanded) 8.dp else 4.dp))
+
             // Eraser tool
             IconButton(
-                modifier = Modifier.width(if (expanded) 64.dp else 48.dp),
+                modifier = Modifier.width(if (expanded) 64.dp else 48.dp).then(if (currentTool == ToolType.ERASER) Modifier.border(1.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(24.dp)) else Modifier),
                 onClick = onEraserTool
             ) {
                 Icon(
@@ -94,9 +104,12 @@ fun ToolbarFloating(
                 )
             }
 
+
+            Spacer(modifier = Modifier.width(if (expanded) 8.dp else 4.dp))
+
             // Text tool
             IconButton(
-                modifier = Modifier.width(if (expanded) 64.dp else 48.dp),
+                modifier = Modifier.width(if (expanded) 64.dp else 48.dp).then(if (currentTool == ToolType.TEXT) Modifier.border(1.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(24.dp)) else Modifier),
                 onClick = onTextTool
             ) {
                 Icon(
