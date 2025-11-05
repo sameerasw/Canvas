@@ -5,8 +5,6 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
@@ -32,13 +30,7 @@ fun ColorPicker(
 ) {
     AnimatedVisibility(
         visible = visible,
-        enter = slideInVertically(
-            initialOffsetY = { it },
-            animationSpec = spring(
-                dampingRatio = Spring.DampingRatioMediumBouncy,
-                stiffness = Spring.StiffnessMediumLow
-            )
-        ) + slideInHorizontally(
+        enter = slideInHorizontally(
             initialOffsetX = { it },
             animationSpec = spring(
                 dampingRatio = Spring.DampingRatioMediumBouncy,
@@ -55,12 +47,6 @@ fun ColorPicker(
             animationSpec = spring(
                 dampingRatio = Spring.DampingRatioMediumBouncy,
                 stiffness = Spring.StiffnessLow
-            )
-        ) + slideOutVertically(
-            targetOffsetY = { it },
-            animationSpec = spring(
-                dampingRatio = Spring.DampingRatioNoBouncy,
-                stiffness = Spring.StiffnessMedium
             )
         ) + fadeOut(
             animationSpec = spring(
@@ -86,13 +72,13 @@ private fun ColorPickerContent(
     // Primary colors
     val primaryColors = listOf(
         Color.Black,
+        Color.White,
         Color.Red,
         Color(0xFFFF6B00), // Orange
         Color.Yellow,
         Color.Green,
         Color.Blue,
         Color(0xFF9C27B0), // Purple
-        Color.White,
         Color.Gray,
         Color(0xFF795548) // Brown
     )
@@ -100,13 +86,13 @@ private fun ColorPickerContent(
     // Pastel versions (lighter)
     val pastelColors = listOf(
         Color(0xFF505050), // Dark gray (pastel black)
+        Color(0xFFF5F5F5), // Pastel white
         Color(0xFFFFB3B3), // Pastel red
         Color(0xFFFFD4A3), // Pastel orange
         Color(0xFFFFFFB3), // Pastel yellow
         Color(0xFFB3FFB3), // Pastel green
         Color(0xFFB3D9FF), // Pastel blue
         Color(0xFFE1B3FF), // Pastel purple
-        Color(0xFFF5F5F5), // Pastel white
         Color(0xFFD3D3D3), // Pastel gray
         Color(0xFFD7CCC8) // Pastel brown
     )
@@ -114,13 +100,13 @@ private fun ColorPickerContent(
     // Dark versions (darker)
     val darkColors = listOf(
         Color(0xFF000000), // Pure black
+        Color(0xFFCCCCCC), // Dark white
         Color(0xFF990000), // Dark red
         Color(0xFFCC4400), // Dark orange
         Color(0xFFCCCC00), // Dark yellow
         Color(0xFF008000), // Dark green
         Color(0xFF000099), // Dark blue
         Color(0xFF660099), // Dark purple
-        Color(0xFFCCCCCC), // Dark white
         Color(0xFF404040), // Dark gray
         Color(0xFF3E2723) // Dark brown
     )

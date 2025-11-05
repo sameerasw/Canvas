@@ -6,6 +6,7 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -99,6 +100,7 @@ class CropActivity : ComponentActivity() {
                     var bitmap by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
                     var strokes by remember { mutableStateOf<List<DrawStroke>>(emptyList()) }
                     var texts by remember { mutableStateOf<List<TextItem>>(emptyList()) }
+                    var canvasBackgroundColor by remember { mutableStateOf(Color.White) }
                     val scope = rememberCoroutineScope()
                     val haptics = LocalHapticFeedback.current
 
@@ -106,8 +108,10 @@ class CropActivity : ComponentActivity() {
                     LaunchedEffect(Unit) {
                         try {
                             val gson = com.google.gson.Gson()
-                            val strokeType = object : com.google.gson.reflect.TypeToken<List<DrawStroke>>() {}.type
-                            val textType = object : com.google.gson.reflect.TypeToken<List<TextItem>>() {}.type
+                            val strokeType = object :
+                                com.google.gson.reflect.TypeToken<List<DrawStroke>>() {}.type
+                            val textType =
+                                object : com.google.gson.reflect.TypeToken<List<TextItem>>() {}.type
                             strokes = gson.fromJson(strokesJson, strokeType) ?: emptyList()
                             texts = gson.fromJson(textsJson, textType) ?: emptyList()
                         } catch (_: Exception) {
@@ -118,7 +122,7 @@ class CropActivity : ComponentActivity() {
 
                     // Aspect selection: 0=9:16 (vertical), 1=1:1 (square), 2=16:9 (horizontal)
                     var selectedAspectIndex by remember { mutableStateOf(1) } // default 1:1
-                    val aspectRatios = listOf(9f/16f, 1f, 16f/9f)
+                    val aspectRatios = listOf(9f / 16f, 1f, 16f / 9f)
 
                     // UI state for transform gestures
                     var viewWidth by remember { mutableStateOf(1f) }
@@ -131,7 +135,8 @@ class CropActivity : ComponentActivity() {
                     LaunchedEffect(imageUri) {
                         try {
                             withContext(Dispatchers.IO) {
-                                val stream: InputStream? = context.contentResolver.openInputStream(imageUri)
+                                val stream: InputStream? =
+                                    context.contentResolver.openInputStream(imageUri)
                                 val loadedBmp = stream.use {
                                     BitmapFactory.decodeStream(it)
                                 }
@@ -145,6 +150,7 @@ class CropActivity : ComponentActivity() {
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
+                            .background(canvasBackgroundColor)
                             .pointerInput(bitmap) {
                                 while (true) {
                                     var emittedStartTick = false
@@ -188,10 +194,21 @@ class CropActivity : ComponentActivity() {
                     ) {
                         val bmp = bitmap
                         if (bmp != null) {
-                            // White background
-                            Canvas(modifier = Modifier.fillMaxSize()) {
-                                drawRect(Color.White, size = size)
+                            // Compute crop overlay size using selected aspect ratio
+                            val targetAspect = aspectRatios[selectedAspectIndex]
+                            val maxOverlayWidth = viewWidth * 0.9f
+                            val maxOverlayHeight = viewHeight * 0.5f
+                            var overlayW = maxOverlayWidth
+                            var overlayH = overlayW / targetAspect
+                            if (overlayH > maxOverlayHeight) {
+                                overlayH = maxOverlayHeight
+                                overlayW = overlayH * targetAspect
+                            }
+                            val overlayLeft = (viewWidth - overlayW) / 2f
+                            val overlayTop = (viewHeight - overlayH) / 2f
 
+                            // Canvas with background color and content
+                            Canvas(modifier = Modifier.fillMaxSize()) {
                                 // Draw bitmap with transform
                                 val dispW = bmp.width * scale
                                 val dispH = bmp.height * scale
@@ -199,8 +216,14 @@ class CropActivity : ComponentActivity() {
                                 // Draw the bitmap centered and transformed
                                 drawImage(
                                     image = bmp.asImageBitmap(),
-                                    dstOffset = androidx.compose.ui.unit.IntOffset(offsetX.toInt(), offsetY.toInt()),
-                                    dstSize = androidx.compose.ui.unit.IntSize(dispW.toInt(), dispH.toInt())
+                                    dstOffset = androidx.compose.ui.unit.IntOffset(
+                                        offsetX.toInt(),
+                                        offsetY.toInt()
+                                    ),
+                                    dstSize = androidx.compose.ui.unit.IntSize(
+                                        dispW.toInt(),
+                                        dispH.toInt()
+                                    )
                                 )
 
                                 // Draw strokes
@@ -212,7 +235,11 @@ class CropActivity : ComponentActivity() {
                                                 worldPoint.y * scale + offsetY
                                             )
                                         }
-                                        drawScribbleStroke(screenPoints, stroke.color, stroke.width * scale)
+                                        drawScribbleStroke(
+                                            screenPoints,
+                                            stroke.color,
+                                            stroke.width * scale
+                                        )
                                     }
                                 }
 
@@ -230,19 +257,6 @@ class CropActivity : ComponentActivity() {
                                     )
                                 }
                             }
-
-                            // Compute crop overlay size using selected aspect ratio
-                            val targetAspect = aspectRatios[selectedAspectIndex]
-                            val maxOverlayWidth = viewWidth * 0.9f
-                            val maxOverlayHeight = viewHeight * 0.5f
-                            var overlayW = maxOverlayWidth
-                            var overlayH = overlayW / targetAspect
-                            if (overlayH > maxOverlayHeight) {
-                                overlayH = maxOverlayHeight
-                                overlayW = overlayH * targetAspect
-                            }
-                            val overlayLeft = (viewWidth - overlayW) / 2f
-                            val overlayTop = (viewHeight - overlayH) / 2f
 
                             val overlayColor = Color.Black.copy(alpha = 0.55f)
                             val strokeColor = MaterialTheme.colorScheme.onBackground
@@ -284,155 +298,315 @@ class CropActivity : ComponentActivity() {
                                     .fillMaxSize(),
                                 contentAlignment = Alignment.BottomCenter
                             ) {
-                                Surface(
-                                    modifier = Modifier
-                                        .padding(bottom = 24.dp)
-                                        .padding(horizontal = 16.dp),
-                                    shape = RoundedCornerShape(24.dp),
-                                    color = MaterialTheme.colorScheme.surface,
-                                    tonalElevation = 0.dp
+                                Column(
+                                    modifier = Modifier.fillMaxSize(),
+                                    verticalArrangement = Arrangement.Bottom,
+                                    horizontalAlignment = Alignment.CenterHorizontally
                                 ) {
-                                    Column(
-                                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    // Background color picker
+                                    com.sameerasw.canvas.ui.components.ColorPicker(
+                                        visible = true,
+                                        selectedColor = canvasBackgroundColor,
+                                        onColorSelected = { canvasBackgroundColor = it },
+                                        modifier = Modifier.padding(bottom = 8.dp)
+                                    )
+
+                                    Surface(
+                                        modifier = Modifier
+                                            .padding(bottom = 24.dp)
+                                            .padding(horizontal = 16.dp),
+                                        shape = RoundedCornerShape(24.dp),
+                                        color = MaterialTheme.colorScheme.surface,
+                                        tonalElevation = 0.dp
                                     ) {
-                                        // Aspect picker
-                                        Row(
-                                            modifier = Modifier
-                                                .padding(horizontal = 8.dp)
-                                                .fillMaxWidth(),
-                                            horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
+                                        Column(
+                                            modifier = Modifier.padding(
+                                                horizontal = 16.dp,
+                                                vertical = 12.dp
+                                            ),
+                                            horizontalAlignment = Alignment.CenterHorizontally
                                         ) {
-                                            val aspectIcons = listOf(
-                                                R.drawable.rounded_crop_9_16_24,
-                                                R.drawable.rounded_crop_square_24,
-                                                R.drawable.rounded_rectangle_24
-                                            )
-                                            aspectIcons.forEachIndexed { index, iconRes ->
-                                                ToggleButton(
-                                                    checked = selectedAspectIndex == index,
-                                                    onCheckedChange = { selectedAspectIndex = index },
-                                                    modifier = Modifier.weight(1f),
-                                                    shapes = when (index) {
-                                                        0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
-                                                        aspectIcons.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
-                                                        else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
-                                                    },
-                                                ) {
-                                                    Icon(
-                                                        painter = painterResource(id = iconRes),
-                                                        contentDescription = null
-                                                    )
+                                            // Aspect picker
+                                            Row(
+                                                modifier = Modifier
+                                                    .padding(horizontal = 8.dp)
+                                                    .fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.spacedBy(
+                                                    ButtonGroupDefaults.ConnectedSpaceBetween
+                                                ),
+                                            ) {
+                                                val aspectIcons = listOf(
+                                                    R.drawable.rounded_crop_9_16_24,
+                                                    R.drawable.rounded_crop_square_24,
+                                                    R.drawable.rounded_rectangle_24
+                                                )
+                                                aspectIcons.forEachIndexed { index, iconRes ->
+                                                    ToggleButton(
+                                                        checked = selectedAspectIndex == index,
+                                                        onCheckedChange = {
+                                                            selectedAspectIndex = index
+                                                        },
+                                                        modifier = Modifier.weight(1f),
+                                                        shapes = when (index) {
+                                                            0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
+                                                            aspectIcons.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
+                                                            else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
+                                                        },
+                                                    ) {
+                                                        Icon(
+                                                            painter = painterResource(id = iconRes),
+                                                            contentDescription = null
+                                                        )
+                                                    }
                                                 }
                                             }
-                                        }
 
-                                        Spacer(modifier = Modifier.size(12.dp))
-                                        Text(
-                                            text = "Crop and resize",
-                                            color = MaterialTheme.colorScheme.onBackground
-                                        )
-                                        Spacer(modifier = Modifier.size(12.dp))
+                                            Spacer(modifier = Modifier.size(12.dp))
+                                            Text(
+                                                text = "Crop and resize",
+                                                color = MaterialTheme.colorScheme.onBackground
+                                            )
+                                            Spacer(modifier = Modifier.size(12.dp))
 
-                                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                                            if (isShare) {
-                                                OutlinedButton(onClick = { HapticUtil.performClick(haptics); finish() }) {
-                                                    Text("Back")
-                                                }
-
-                                                Button(onClick = {
-                                                    HapticUtil.performClick(haptics)
-                                                    scope.launch {
-                                                        val outBmp = performCropAndCreateBitmap(overlayLeft, overlayTop, overlayW, overlayH, offsetX, offsetY, scale, strokes, texts, context)
-                                                        if (outBmp == null) {
-                                                            Toast.makeText(context, "Nothing to export", Toast.LENGTH_SHORT).show()
-                                                            return@launch
-                                                        }
-                                                        try {
-                                                            val ts = java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.US).format(java.util.Date())
-                                                            val filename = "canvas_crop_$ts.png"
-                                                            val uri = BitmapStorageHelper.saveBitmapToDownloads(context, outBmp, filename, android.graphics.Bitmap.CompressFormat.PNG)
-                                                            if (uri != null) {
-                                                                Toast.makeText(context, "Saved to Downloads", Toast.LENGTH_SHORT).show()
-                                                            } else {
-                                                                Toast.makeText(context, "Failed to save image", Toast.LENGTH_SHORT).show()
-                                                            }
-                                                        } catch (_: Exception) {
-                                                            Toast.makeText(context, "Failed to save image", Toast.LENGTH_SHORT).show()
-                                                        }
+                                            Row(
+                                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                if (isShare) {
+                                                    OutlinedButton(onClick = {
+                                                        HapticUtil.performClick(
+                                                            haptics
+                                                        ); finish()
+                                                    }) {
+                                                        Text("Back")
                                                     }
-                                                }) {
-                                                    Icon(painter = painterResource(id = R.drawable.rounded_download_24), contentDescription = "Save")
-                                                    Spacer(modifier = Modifier.size(8.dp))
-                                                    Text("Save")
-                                                }
 
-                                                Button(onClick = {
-                                                    HapticUtil.performClick(haptics)
-                                                    scope.launch {
-                                                        val outBmp = performCropAndCreateBitmap(overlayLeft, overlayTop, overlayW, overlayH, offsetX, offsetY, scale, strokes, texts, context)
-                                                        if (outBmp == null) {
-                                                            Toast.makeText(context, "Nothing to export", Toast.LENGTH_SHORT).show()
-                                                            return@launch
-                                                        }
-                                                        try {
-                                                            val ts = java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.US).format(java.util.Date())
-                                                            val filename = "canvas_crop_$ts.png"
-                                                            val uri = BitmapStorageHelper.saveBitmapToCacheAndGetUri(context, outBmp, filename, android.graphics.Bitmap.CompressFormat.PNG)
-                                                            if (uri != null) {
-                                                                val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
-                                                                    putExtra(android.content.Intent.EXTRA_STREAM, uri)
-                                                                    type = "image/png"
-                                                                    addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                                    Button(onClick = {
+                                                        HapticUtil.performClick(haptics)
+                                                        scope.launch {
+                                                            val outBmp = performCropAndCreateBitmap(
+                                                                overlayLeft,
+                                                                overlayTop,
+                                                                overlayW,
+                                                                overlayH,
+                                                                offsetX,
+                                                                offsetY,
+                                                                scale,
+                                                                strokes,
+                                                                texts,
+                                                                context,
+                                                                canvasBackgroundColor
+                                                            )
+                                                            if (outBmp == null) {
+                                                                Toast.makeText(
+                                                                    context,
+                                                                    "Nothing to export",
+                                                                    Toast.LENGTH_SHORT
+                                                                ).show()
+                                                                return@launch
+                                                            }
+                                                            try {
+                                                                val ts = java.text.SimpleDateFormat(
+                                                                    "yyyyMMdd_HHmmss",
+                                                                    java.util.Locale.US
+                                                                ).format(java.util.Date())
+                                                                val filename = "canvas_crop_$ts.png"
+                                                                val uri =
+                                                                    BitmapStorageHelper.saveBitmapToDownloads(
+                                                                        context,
+                                                                        outBmp,
+                                                                        filename,
+                                                                        android.graphics.Bitmap.CompressFormat.PNG
+                                                                    )
+                                                                if (uri != null) {
+                                                                    Toast.makeText(
+                                                                        context,
+                                                                        "Saved to Downloads",
+                                                                        Toast.LENGTH_SHORT
+                                                                    ).show()
+                                                                } else {
+                                                                    Toast.makeText(
+                                                                        context,
+                                                                        "Failed to save image",
+                                                                        Toast.LENGTH_SHORT
+                                                                    ).show()
                                                                 }
-                                                                try {
-                                                                    context.startActivity(android.content.Intent.createChooser(shareIntent, "Share image"))
-                                                                } catch (_: Exception) {
-                                                                    Toast.makeText(context, "No app available to share image", Toast.LENGTH_SHORT).show()
+                                                            } catch (_: Exception) {
+                                                                Toast.makeText(
+                                                                    context,
+                                                                    "Failed to save image",
+                                                                    Toast.LENGTH_SHORT
+                                                                ).show()
+                                                            }
+                                                        }
+                                                    }) {
+                                                        Icon(
+                                                            painter = painterResource(id = R.drawable.rounded_download_24),
+                                                            contentDescription = "Save"
+                                                        )
+                                                        Spacer(modifier = Modifier.size(8.dp))
+                                                        Text("Save")
+                                                    }
+
+                                                    Button(onClick = {
+                                                        HapticUtil.performClick(haptics)
+                                                        scope.launch {
+                                                            val outBmp = performCropAndCreateBitmap(
+                                                                overlayLeft,
+                                                                overlayTop,
+                                                                overlayW,
+                                                                overlayH,
+                                                                offsetX,
+                                                                offsetY,
+                                                                scale,
+                                                                strokes,
+                                                                texts,
+                                                                context,
+                                                                canvasBackgroundColor
+                                                            )
+                                                            if (outBmp == null) {
+                                                                Toast.makeText(
+                                                                    context,
+                                                                    "Nothing to export",
+                                                                    Toast.LENGTH_SHORT
+                                                                ).show()
+                                                                return@launch
+                                                            }
+                                                            try {
+                                                                val ts = java.text.SimpleDateFormat(
+                                                                    "yyyyMMdd_HHmmss",
+                                                                    java.util.Locale.US
+                                                                ).format(java.util.Date())
+                                                                val filename = "canvas_crop_$ts.png"
+                                                                val uri =
+                                                                    BitmapStorageHelper.saveBitmapToCacheAndGetUri(
+                                                                        context,
+                                                                        outBmp,
+                                                                        filename,
+                                                                        android.graphics.Bitmap.CompressFormat.PNG
+                                                                    )
+                                                                if (uri != null) {
+                                                                    val shareIntent =
+                                                                        android.content.Intent(
+                                                                            android.content.Intent.ACTION_SEND
+                                                                        ).apply {
+                                                                            putExtra(
+                                                                                android.content.Intent.EXTRA_STREAM,
+                                                                                uri
+                                                                            )
+                                                                            type = "image/png"
+                                                                            addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                                                        }
+                                                                    try {
+                                                                        context.startActivity(
+                                                                            android.content.Intent.createChooser(
+                                                                                shareIntent,
+                                                                                "Share image"
+                                                                            )
+                                                                        )
+                                                                    } catch (_: Exception) {
+                                                                        Toast.makeText(
+                                                                            context,
+                                                                            "No app available to share image",
+                                                                            Toast.LENGTH_SHORT
+                                                                        ).show()
+                                                                    }
+                                                                } else {
+                                                                    Toast.makeText(
+                                                                        context,
+                                                                        "Failed to export image",
+                                                                        Toast.LENGTH_SHORT
+                                                                    ).show()
                                                                 }
-                                                            } else {
-                                                                Toast.makeText(context, "Failed to export image", Toast.LENGTH_SHORT).show()
+                                                            } catch (_: Exception) {
+                                                                Toast.makeText(
+                                                                    context,
+                                                                    "Failed to process image",
+                                                                    Toast.LENGTH_SHORT
+                                                                ).show()
+                                                            } finally {
+                                                                finish()
                                                             }
-                                                        } catch (_: Exception) {
-                                                            Toast.makeText(context, "Failed to process image", Toast.LENGTH_SHORT).show()
-                                                        } finally {
-                                                            finish()
                                                         }
+                                                    }) {
+                                                        Icon(
+                                                            painter = painterResource(id = R.drawable.rounded_ios_share_24),
+                                                            contentDescription = "Share"
+                                                        )
+                                                        Spacer(modifier = Modifier.size(8.dp))
+                                                        Text("Share")
                                                     }
-                                                }) {
-                                                    Icon(painter = painterResource(id = R.drawable.rounded_ios_share_24), contentDescription = "Share")
-                                                    Spacer(modifier = Modifier.size(8.dp))
-                                                    Text("Share")
-                                                }
-                                            } else {
-                                                OutlinedButton(onClick = { HapticUtil.performClick(haptics); finish() }) {
-                                                    Text("Back")
-                                                }
-                                                Button(onClick = {
-                                                    HapticUtil.performClick(haptics)
-                                                    scope.launch {
-                                                        val outBmp = performCropAndCreateBitmap(overlayLeft, overlayTop, overlayW, overlayH, offsetX, offsetY, scale, strokes, texts, context)
-                                                        if (outBmp == null) {
-                                                            Toast.makeText(context, "Nothing to export", Toast.LENGTH_SHORT).show()
-                                                            return@launch
-                                                        }
-                                                        try {
-                                                            val ts = java.text.SimpleDateFormat("yyyyMMdd_HHmmss", java.util.Locale.US).format(java.util.Date())
-                                                            val filename = "canvas_crop_$ts.png"
-                                                            val uri = BitmapStorageHelper.saveBitmapToDownloads(context, outBmp, filename, android.graphics.Bitmap.CompressFormat.PNG)
-                                                            if (uri != null) {
-                                                                Toast.makeText(context, "Saved to Downloads", Toast.LENGTH_SHORT).show()
-                                                            } else {
-                                                                Toast.makeText(context, "Failed to save image", Toast.LENGTH_SHORT).show()
+                                                } else {
+                                                    OutlinedButton(onClick = {
+                                                        HapticUtil.performClick(
+                                                            haptics
+                                                        ); finish()
+                                                    }) {
+                                                        Text("Back")
+                                                    }
+                                                    Button(onClick = {
+                                                        HapticUtil.performClick(haptics)
+                                                        scope.launch {
+                                                            val outBmp = performCropAndCreateBitmap(
+                                                                overlayLeft,
+                                                                overlayTop,
+                                                                overlayW,
+                                                                overlayH,
+                                                                offsetX,
+                                                                offsetY,
+                                                                scale,
+                                                                strokes,
+                                                                texts,
+                                                                context,
+                                                                canvasBackgroundColor
+                                                            )
+                                                            if (outBmp == null) {
+                                                                Toast.makeText(
+                                                                    context,
+                                                                    "Nothing to export",
+                                                                    Toast.LENGTH_SHORT
+                                                                ).show()
+                                                                return@launch
                                                             }
-                                                        } catch (_: Exception) {
-                                                            Toast.makeText(context, "Failed to save image", Toast.LENGTH_SHORT).show()
-                                                        } finally {
-                                                            finish()
+                                                            try {
+                                                                val ts = java.text.SimpleDateFormat(
+                                                                    "yyyyMMdd_HHmmss",
+                                                                    java.util.Locale.US
+                                                                ).format(java.util.Date())
+                                                                val filename = "canvas_crop_$ts.png"
+                                                                val uri =
+                                                                    BitmapStorageHelper.saveBitmapToDownloads(
+                                                                        context,
+                                                                        outBmp,
+                                                                        filename,
+                                                                        android.graphics.Bitmap.CompressFormat.PNG
+                                                                    )
+                                                                if (uri != null) {
+                                                                    Toast.makeText(
+                                                                        context,
+                                                                        "Saved to Downloads",
+                                                                        Toast.LENGTH_SHORT
+                                                                    ).show()
+                                                                } else {
+                                                                    Toast.makeText(
+                                                                        context,
+                                                                        "Failed to save image",
+                                                                        Toast.LENGTH_SHORT
+                                                                    ).show()
+                                                                }
+                                                            } catch (_: Exception) {
+                                                                Toast.makeText(
+                                                                    context,
+                                                                    "Failed to save image",
+                                                                    Toast.LENGTH_SHORT
+                                                                ).show()
+                                                            } finally {
+                                                                finish()
+                                                            }
                                                         }
+                                                    }) {
+                                                        Text("Save")
                                                     }
-                                                }) {
-                                                    Text("Save")
                                                 }
                                             }
                                         }
@@ -445,186 +619,288 @@ class CropActivity : ComponentActivity() {
             }
         }
     }
-}
-// Compute and return the cropped bitmap, rendering strokes and texts in the crop region
-private suspend fun performCropAndCreateBitmap(
-    overlayLeft: Float,
-    overlayTop: Float,
-    overlayW: Float,
-    overlayH: Float,
-    offsetX: Float,
-    offsetY: Float,
-    scale: Float,
-    strokes: List<DrawStroke>,
-    texts: List<TextItem>,
-    context: android.content.Context
-): android.graphics.Bitmap? {
-    return withContext(Dispatchers.Default) {
-        try {
-            val outW = overlayW.toInt().coerceAtLeast(1)
-            val outH = overlayH.toInt().coerceAtLeast(1)
 
-            val outBmp = createBitmap(outW, outH)
-            val canvas = android.graphics.Canvas(outBmp)
-            canvas.drawColor(android.graphics.Color.WHITE)
+    // Compute and return the cropped bitmap, rendering strokes and texts in the crop region
+    private suspend fun performCropAndCreateBitmap(
+        overlayLeft: Float,
+        overlayTop: Float,
+        overlayW: Float,
+        overlayH: Float,
+        offsetX: Float,
+        offsetY: Float,
+        scale: Float,
+        strokes: List<DrawStroke>,
+        texts: List<TextItem>,
+        context: android.content.Context,
+        backgroundColor: Color
+    ): android.graphics.Bitmap? {
+        return withContext(Dispatchers.Default) {
+            try {
+                val outW = overlayW.toInt().coerceAtLeast(1)
+                val outH = overlayH.toInt().coerceAtLeast(1)
 
-            val paint = android.graphics.Paint().apply {
-                isAntiAlias = true
-                style = android.graphics.Paint.Style.STROKE
-                strokeCap = android.graphics.Paint.Cap.ROUND
-                strokeJoin = android.graphics.Paint.Join.ROUND
-            }
+                val outBmp = createBitmap(outW, outH)
+                val canvas = android.graphics.Canvas(outBmp)
+                canvas.drawColor(backgroundColor.toArgb())
 
-            // Convert screen coordinates to world coordinates
-            val worldLeft = (overlayLeft - offsetX) / scale
-            val worldTop = (overlayTop - offsetY) / scale
-            val worldWidth = overlayW / scale
-            val worldHeight = overlayH / scale
+                val paint = android.graphics.Paint().apply {
+                    isAntiAlias = true
+                    style = android.graphics.Paint.Style.STROKE
+                    strokeCap = android.graphics.Paint.Cap.ROUND
+                    strokeJoin = android.graphics.Paint.Join.ROUND
+                }
 
-            // Draw strokes that fall within the crop region
-            strokes.forEach { s ->
-                if (s.points.size < 2) return@forEach
+                // Convert screen coordinates to world coordinates
+                val worldLeft = (overlayLeft - offsetX) / scale
+                val worldTop = (overlayTop - offsetY) / scale
+                val worldWidth = overlayW / scale
+                val worldHeight = overlayH / scale
 
-                paint.color = s.color.toArgb()
-                paint.strokeWidth = s.width
+                // Draw strokes that fall within the crop region
+                strokes.forEach { s ->
+                    if (s.points.size < 2) return@forEach
 
-                when {
-                    s.isArrow -> {
-                        // Draw arrow
-                        val start = s.points.first()
-                        val end = s.points.last()
-                        val (startX, startY) = convertWorldToOutput(start, worldLeft, worldTop, worldWidth, worldHeight, outW, outH)
-                        val (endX, endY) = convertWorldToOutput(end, worldLeft, worldTop, worldWidth, worldHeight, outW, outH)
+                    paint.color = s.color.toArgb()
+                    paint.strokeWidth = s.width
 
-                        val angle = kotlin.math.atan2((endY - startY).toDouble(), (endX - startX).toDouble())
-                        val arrowLength = (s.width * 3.5f).coerceAtLeast(12f)
-                        val arrowAngle = Math.PI / 7
+                    when {
+                        s.isArrow -> {
+                            // Draw arrow
+                            val start = s.points.first()
+                            val end = s.points.last()
+                            val (startX, startY) = convertWorldToOutput(
+                                start,
+                                worldLeft,
+                                worldTop,
+                                worldWidth,
+                                worldHeight,
+                                outW,
+                                outH
+                            )
+                            val (endX, endY) = convertWorldToOutput(
+                                end,
+                                worldLeft,
+                                worldTop,
+                                worldWidth,
+                                worldHeight,
+                                outW,
+                                outH
+                            )
 
-                        val arrow1X = (endX - arrowLength * kotlin.math.cos(angle - arrowAngle)).toFloat()
-                        val arrow1Y = (endY - arrowLength * kotlin.math.sin(angle - arrowAngle)).toFloat()
-                        val arrow2X = (endX - arrowLength * kotlin.math.cos(angle + arrowAngle)).toFloat()
-                        val arrow2Y = (endY - arrowLength * kotlin.math.sin(angle + arrowAngle)).toFloat()
+                            val angle = kotlin.math.atan2(
+                                (endY - startY).toDouble(),
+                                (endX - startX).toDouble()
+                            )
+                            val arrowLength = (s.width * 3.5f).coerceAtLeast(12f)
+                            val arrowAngle = Math.PI / 7
 
-                        val arrowBaseX = (endX - arrowLength * 0.7f * kotlin.math.cos(angle)).toFloat()
-                        val arrowBaseY = (endY - arrowLength * 0.7f * kotlin.math.sin(angle)).toFloat()
+                            val arrow1X =
+                                (endX - arrowLength * kotlin.math.cos(angle - arrowAngle)).toFloat()
+                            val arrow1Y =
+                                (endY - arrowLength * kotlin.math.sin(angle - arrowAngle)).toFloat()
+                            val arrow2X =
+                                (endX - arrowLength * kotlin.math.cos(angle + arrowAngle)).toFloat()
+                            val arrow2Y =
+                                (endY - arrowLength * kotlin.math.sin(angle + arrowAngle)).toFloat()
 
-                        // Draw arrow line
-                        canvas.drawLine(startX, startY, arrowBaseX, arrowBaseY, paint)
+                            val arrowBaseX =
+                                (endX - arrowLength * 0.7f * kotlin.math.cos(angle)).toFloat()
+                            val arrowBaseY =
+                                (endY - arrowLength * 0.7f * kotlin.math.sin(angle)).toFloat()
 
-                        // Draw arrow head
-                        val arrowPath = android.graphics.Path()
-                        arrowPath.moveTo(endX, endY)
-                        arrowPath.lineTo(arrow1X, arrow1Y)
-                        arrowPath.lineTo(arrow2X, arrow2Y)
-                        arrowPath.close()
-                        val prevStyle = paint.style
-                        paint.style = android.graphics.Paint.Style.FILL
-                        canvas.drawPath(arrowPath, paint)
-                        paint.style = prevStyle
-                    }
-                    s.shapeType != null -> {
-                        // Draw shapes
-                        val start = s.points.first()
-                        val end = s.points.last()
-                        val (startX, startY) = convertWorldToOutput(start, worldLeft, worldTop, worldWidth, worldHeight, outW, outH)
-                        val (endX, endY) = convertWorldToOutput(end, worldLeft, worldTop, worldWidth, worldHeight, outW, outH)
-                        val path = android.graphics.Path()
+                            // Draw arrow line
+                            canvas.drawLine(startX, startY, arrowBaseX, arrowBaseY, paint)
 
-                        paint.style = if (s.isFilled) android.graphics.Paint.Style.FILL else android.graphics.Paint.Style.STROKE
-
-                        when (s.shapeType) {
-                            com.sameerasw.canvas.model.ShapeType.RECTANGLE -> {
-                                path.addRect(startX, startY, endX, endY, android.graphics.Path.Direction.CW)
-                            }
-                            com.sameerasw.canvas.model.ShapeType.CIRCLE -> {
-                                val dx = endX - startX
-                                val dy = endY - startY
-                                val radius = kotlin.math.sqrt(dx * dx + dy * dy)
-                                path.addCircle(startX, startY, radius, android.graphics.Path.Direction.CW)
-                            }
-                            com.sameerasw.canvas.model.ShapeType.TRIANGLE -> {
-                                path.moveTo(startX, endY)
-                                path.lineTo((startX + endX) / 2f, startY)
-                                path.lineTo(endX, endY)
-                                path.close()
-                            }
-                            com.sameerasw.canvas.model.ShapeType.LINE -> {
-                                canvas.drawLine(startX, startY, endX, endY, paint)
-                            }
+                            // Draw arrow head
+                            val arrowPath = android.graphics.Path()
+                            arrowPath.moveTo(endX, endY)
+                            arrowPath.lineTo(arrow1X, arrow1Y)
+                            arrowPath.lineTo(arrow2X, arrow2Y)
+                            arrowPath.close()
+                            val prevStyle = paint.style
+                            paint.style = android.graphics.Paint.Style.FILL
+                            canvas.drawPath(arrowPath, paint)
+                            paint.style = prevStyle
                         }
-                        if (s.shapeType != com.sameerasw.canvas.model.ShapeType.LINE) {
+
+                        s.shapeType != null -> {
+                            // Draw shapes
+                            val start = s.points.first()
+                            val end = s.points.last()
+                            val (startX, startY) = convertWorldToOutput(
+                                start,
+                                worldLeft,
+                                worldTop,
+                                worldWidth,
+                                worldHeight,
+                                outW,
+                                outH
+                            )
+                            val (endX, endY) = convertWorldToOutput(
+                                end,
+                                worldLeft,
+                                worldTop,
+                                worldWidth,
+                                worldHeight,
+                                outW,
+                                outH
+                            )
+                            val path = android.graphics.Path()
+
+                            paint.style =
+                                if (s.isFilled) android.graphics.Paint.Style.FILL else android.graphics.Paint.Style.STROKE
+
+                            when (s.shapeType) {
+                                com.sameerasw.canvas.model.ShapeType.RECTANGLE -> {
+                                    path.addRect(
+                                        startX,
+                                        startY,
+                                        endX,
+                                        endY,
+                                        android.graphics.Path.Direction.CW
+                                    )
+                                }
+
+                                com.sameerasw.canvas.model.ShapeType.CIRCLE -> {
+                                    val dx = endX - startX
+                                    val dy = endY - startY
+                                    val radius = kotlin.math.sqrt(dx * dx + dy * dy)
+                                    path.addCircle(
+                                        startX,
+                                        startY,
+                                        radius,
+                                        android.graphics.Path.Direction.CW
+                                    )
+                                }
+
+                                com.sameerasw.canvas.model.ShapeType.TRIANGLE -> {
+                                    path.moveTo(startX, endY)
+                                    path.lineTo((startX + endX) / 2f, startY)
+                                    path.lineTo(endX, endY)
+                                    path.close()
+                                }
+
+                                com.sameerasw.canvas.model.ShapeType.LINE -> {
+                                    canvas.drawLine(startX, startY, endX, endY, paint)
+                                }
+                            }
+                            if (s.shapeType != com.sameerasw.canvas.model.ShapeType.LINE) {
+                                canvas.drawPath(path, paint)
+                            }
+                            paint.style = android.graphics.Paint.Style.STROKE
+                        }
+
+                        else -> {
+                            // Draw regular strokes
+                            val path = android.graphics.Path()
+                            val pts = s.points
+
+                            // Transform points from world to output bitmap space
+                            val (firstX, firstY) = convertWorldToOutput(
+                                pts.first(),
+                                worldLeft,
+                                worldTop,
+                                worldWidth,
+                                worldHeight,
+                                outW,
+                                outH
+                            )
+                            path.moveTo(firstX, firstY)
+
+                            for (i in 1 until pts.size) {
+                                val prev = pts[i - 1]
+                                val curr = pts[i]
+                                val (prevX, prevY) = convertWorldToOutput(
+                                    prev,
+                                    worldLeft,
+                                    worldTop,
+                                    worldWidth,
+                                    worldHeight,
+                                    outW,
+                                    outH
+                                )
+                                val (currX, currY) = convertWorldToOutput(
+                                    curr,
+                                    worldLeft,
+                                    worldTop,
+                                    worldWidth,
+                                    worldHeight,
+                                    outW,
+                                    outH
+                                )
+                                val midX = (prevX + currX) / 2f
+                                val midY = (prevY + currY) / 2f
+                                path.quadTo(prevX, prevY, midX, midY)
+                            }
+
+                            val (lastX, lastY) = convertWorldToOutput(
+                                pts.last(),
+                                worldLeft,
+                                worldTop,
+                                worldWidth,
+                                worldHeight,
+                                outW,
+                                outH
+                            )
+                            path.lineTo(lastX, lastY)
                             canvas.drawPath(path, paint)
                         }
-                        paint.style = android.graphics.Paint.Style.STROKE
-                    }
-                    else -> {
-                        // Draw regular strokes
-                        val path = android.graphics.Path()
-                        val pts = s.points
-
-                        // Transform points from world to output bitmap space
-                        val (firstX, firstY) = convertWorldToOutput(pts.first(), worldLeft, worldTop, worldWidth, worldHeight, outW, outH)
-                        path.moveTo(firstX, firstY)
-
-                        for (i in 1 until pts.size) {
-                            val prev = pts[i - 1]
-                            val curr = pts[i]
-                            val (prevX, prevY) = convertWorldToOutput(prev, worldLeft, worldTop, worldWidth, worldHeight, outW, outH)
-                            val (currX, currY) = convertWorldToOutput(curr, worldLeft, worldTop, worldWidth, worldHeight, outW, outH)
-                            val midX = (prevX + currX) / 2f
-                            val midY = (prevY + currY) / 2f
-                            path.quadTo(prevX, prevY, midX, midY)
-                        }
-
-                        val (lastX, lastY) = convertWorldToOutput(pts.last(), worldLeft, worldTop, worldWidth, worldHeight, outW, outH)
-                        path.lineTo(lastX, lastY)
-                        canvas.drawPath(path, paint)
                     }
                 }
+
+                // Draw texts that fall within the crop region
+                val textPaint = android.graphics.Paint().apply {
+                    isAntiAlias = true
+                    style = android.graphics.Paint.Style.FILL
+                }
+
+                texts.forEach { t ->
+                    val (textX, textY) = convertWorldToOutput(
+                        Offset(t.x, t.y),
+                        worldLeft,
+                        worldTop,
+                        worldWidth,
+                        worldHeight,
+                        outW,
+                        outH
+                    )
+                    textPaint.color = t.color.toArgb()
+                    textPaint.textSize = t.size
+                    try {
+                        val tf: android.graphics.Typeface? =
+                            androidx.core.content.res.ResourcesCompat.getFont(context, R.font.font)
+                        if (tf != null) textPaint.typeface = tf
+                    } catch (_: Exception) {
+                    }
+
+                    val fm = textPaint.fontMetrics
+                    val baseline = textY - fm.ascent
+                    canvas.drawText(t.text, textX, baseline, textPaint)
+                }
+
+                outBmp
+            } catch (_: Exception) {
+                null
             }
-
-            // Draw texts that fall within the crop region
-            val textPaint = android.graphics.Paint().apply {
-                isAntiAlias = true
-                style = android.graphics.Paint.Style.FILL
-            }
-
-            texts.forEach { t ->
-                val (textX, textY) = convertWorldToOutput(Offset(t.x, t.y), worldLeft, worldTop, worldWidth, worldHeight, outW, outH)
-                textPaint.color = t.color.toArgb()
-                textPaint.textSize = t.size
-                try {
-                    val tf: android.graphics.Typeface? = androidx.core.content.res.ResourcesCompat.getFont(context, R.font.font)
-                    if (tf != null) textPaint.typeface = tf
-                } catch (_: Exception) { }
-
-                val fm = textPaint.fontMetrics
-                val baseline = textY - fm.ascent
-                canvas.drawText(t.text, textX, baseline, textPaint)
-            }
-
-            outBmp
-        } catch (_: Exception) {
-            null
         }
     }
+
+    // Helper function to convert world coordinates to output bitmap coordinates
+    private fun convertWorldToOutput(
+        worldPoint: Offset,
+        worldLeft: Float,
+        worldTop: Float,
+        worldWidth: Float,
+        worldHeight: Float,
+        outW: Int,
+        outH: Int
+    ): Pair<Float, Float> {
+        val relX = (worldPoint.x - worldLeft) / worldWidth
+        val relY = (worldPoint.y - worldTop) / worldHeight
+        val outX = relX * outW
+        val outY = relY * outH
+        return Pair(outX, outY)
+    }
+
+
 }
-
-// Helper function to convert world coordinates to output bitmap coordinates
-private fun convertWorldToOutput(
-    worldPoint: Offset,
-    worldLeft: Float,
-    worldTop: Float,
-    worldWidth: Float,
-    worldHeight: Float,
-    outW: Int,
-    outH: Int
-): Pair<Float, Float> {
-    val relX = (worldPoint.x - worldLeft) / worldWidth
-    val relY = (worldPoint.y - worldTop) / worldHeight
-    val outX = relX * outW
-    val outY = relY * outH
-    return Pair(outX, outY)
-}
-
-
