@@ -185,9 +185,16 @@ fun CanvasApp(viewModel: CanvasViewModel) {
                             if (bmp != null) {
                                 val uri = BitmapStorageHelper.saveBitmapToCacheAndGetUri(context, bmp, filename, android.graphics.Bitmap.CompressFormat.PNG)
                                 if (uri != null) {
+                                    // Serialize strokes and texts to JSON for passing to CropActivity
+                                    val gson = com.google.gson.Gson()
+                                    val strokesJson = gson.toJson(strokes)
+                                    val textsJson = gson.toJson(texts)
+
                                     val intent = Intent(context, CropActivity::class.java).apply {
                                         putExtra("image_uri", uri.toString())
                                         putExtra("is_share", true)
+                                        putExtra("strokes_json", strokesJson)
+                                        putExtra("texts_json", textsJson)
                                     }
                                     context.startActivity(intent)
                                 } else {

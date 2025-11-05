@@ -31,9 +31,6 @@ object BitmapExportHelper {
         val canvas = AndroidCanvas(bmp)
         canvas.drawColor(android.graphics.Color.WHITE)
 
-        // Draw background pattern if enabled
-        val backgroundType = SettingsRepository.getCanvasBackground()
-        BackgroundDrawer.drawBackgroundOnAndroidCanvas(canvas, backgroundType, outputWidth, outputHeight, android.graphics.Color.BLACK, extendFactor = 1.5f)
 
         val paint = Paint().apply {
             isAntiAlias = true
@@ -44,7 +41,7 @@ object BitmapExportHelper {
 
         strokes.forEach { s ->
             if (s.points.size < 2) return@forEach
-            paint.color = s.color.toArgb()
+            paint.color = android.graphics.Color.BLACK
             paint.strokeWidth = s.width
 
             val path = AndroidPath()
@@ -108,9 +105,6 @@ object BitmapExportHelper {
         val canvas = AndroidCanvas(full)
         canvas.drawColor(android.graphics.Color.WHITE)
 
-        // Draw background pattern if enabled
-        val backgroundType = SettingsRepository.getCanvasBackground()
-        BackgroundDrawer.drawBackgroundOnAndroidCanvas(canvas, backgroundType, viewWidth, viewHeight, android.graphics.Color.BLACK, extendFactor = 1.5f)
 
         val paint = Paint().apply {
             isAntiAlias = true
@@ -121,7 +115,7 @@ object BitmapExportHelper {
 
         strokes.forEach { s ->
             if (s.points.size < 2) return@forEach
-            paint.color = s.color.toArgb()
+            paint.color = android.graphics.Color.BLACK
             // scale stroke width by transformScale
             paint.strokeWidth = s.width * transformScale
 

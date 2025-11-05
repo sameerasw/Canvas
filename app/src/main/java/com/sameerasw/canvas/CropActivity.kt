@@ -1,13 +1,11 @@
 package com.sameerasw.canvas
 
 import android.graphics.BitmapFactory
-import android.graphics.Rect as AndroidRect
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -42,21 +40,24 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.sameerasw.canvas.ui.drawing.BitmapStorageHelper
+import com.sameerasw.canvas.ui.drawing.StrokeDrawer.drawScribbleStroke
+import com.sameerasw.canvas.ui.drawing.TextDrawer.drawStringWithFont
 import com.sameerasw.canvas.ui.theme.CanvasTheme
 import com.sameerasw.canvas.utils.HapticUtil
+import com.sameerasw.canvas.model.DrawStroke
+import com.sameerasw.canvas.data.TextItem
 import java.io.InputStream
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.launch
 import androidx.core.net.toUri
 import androidx.core.graphics.createBitmap
+import kotlin.math.hypot
 
 class CropActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -64,6 +65,9 @@ class CropActivity : ComponentActivity() {
 
         val imageUriString = intent?.getStringExtra("image_uri")
         val isShare = intent?.getBooleanExtra("is_share", true) ?: true
+        val strokesJson = intent?.getStringExtra("strokes_json") ?: "[]"
+        val textsJson = intent?.getStringExtra("texts_json") ?: "[]"
+
         if (imageUriString == null) {
             finish()
             return
@@ -80,31 +84,48 @@ class CropActivity : ComponentActivity() {
                 ) {
                     val context = LocalContext.current
                     var bitmap by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
+                    var strokes by remember { mutableStateOf<List<DrawStroke>>(emptyList()) }
+                    var texts by remember { mutableStateOf<List<TextItem>>(emptyList()) }
                     val scope = rememberCoroutineScope()
                     val haptics = LocalHapticFeedback.current
+
+                    // Deserialize strokes and texts on first composition
+                    LaunchedEffect(Unit) {
+                        try {
+                            val gson = com.google.gson.Gson()
+                            val strokeType = object : com.google.gson.reflect.TypeToken<List<DrawStroke>>() {}.type
+                            val textType = object : com.google.gson.reflect.TypeToken<List<TextItem>>() {}.type
+                            strokes = gson.fromJson(strokesJson, strokeType) ?: emptyList()
+                            texts = gson.fromJson(textsJson, textType) ?: emptyList()
+                        } catch (_: Exception) {
+                            strokes = emptyList()
+                            texts = emptyList()
+                        }
+                    }
 
                     // Aspect selection: 0=9:16 (vertical), 1=1:1 (square), 2=16:9 (horizontal)
                     var selectedAspectIndex by remember { mutableStateOf(1) } // default 1:1
                     val aspectRatios = listOf(9f/16f, 1f, 16f/9f)
 
                     // UI state for transform gestures
-                    var boxWidth by remember { mutableStateOf(1f) }
-                    var boxHeight by remember { mutableStateOf(1f) }
-                    var baseScale by remember { mutableStateOf(1f) }
-                    var transformScale by remember { mutableStateOf(1f) } // multiplier on top of baseScale
-                    var offset by remember { mutableStateOf(Offset.Zero) } // translation in view pixels
+                    var viewWidth by remember { mutableStateOf(1f) }
+                    var viewHeight by remember { mutableStateOf(1f) }
+                    var scale by remember { mutableStateOf(1f) }
+                    var offsetX by remember { mutableStateOf(0f) }
+                    var offsetY by remember { mutableStateOf(0f) }
 
                     // Load bitmap from uri
                     LaunchedEffect(imageUri) {
-                        bitmap = try {
+                        try {
                             withContext(Dispatchers.IO) {
                                 val stream: InputStream? = context.contentResolver.openInputStream(imageUri)
-                                stream.use {
+                                val loadedBmp = stream.use {
                                     BitmapFactory.decodeStream(it)
                                 }
+                                bitmap = loadedBmp
                             }
                         } catch (_: Exception) {
-                            null
+                            bitmap = null
                         }
                     }
 
@@ -112,23 +133,33 @@ class CropActivity : ComponentActivity() {
                         modifier = Modifier
                             .fillMaxSize()
                             .pointerInput(bitmap) {
-                                // Loop so each gesture resets emittedStartTick when detectTransformGestures returns
                                 while (true) {
                                     var emittedStartTick = false
                                     detectTransformGestures { centroid, pan, zoom, _ ->
-                                        val panLen = kotlin.math.hypot(pan.x, pan.y)
+                                        val panLen = hypot(pan.x, pan.y)
                                         val zoomDelta = kotlin.math.abs(zoom - 1f)
                                         if (!emittedStartTick && (panLen > 2f || zoomDelta > 0.01f)) {
                                             HapticUtil.performLightTick(haptics)
                                             emittedStartTick = true
                                         }
 
-                                        // adjust scale and translation
-                                        val newScale = (transformScale * zoom).coerceIn(0.2f, 6f)
-                                        transformScale = newScale
-                                        offset += pan
+                                        // Zoom around centroid with proper math
+                                        val oldScale = scale
+                                        scale = (scale * zoom).coerceIn(0.5f, 5f)
 
-                                        // emit a subtle variable tick proportional to zoom magnitude
+                                        // Convert centroid from screen space to world space
+                                        val worldCx = (centroid.x - offsetX) / oldScale
+                                        val worldCy = (centroid.y - offsetY) / oldScale
+
+                                        // Apply new scale
+                                        offsetX = centroid.x - worldCx * scale
+                                        offsetY = centroid.y - worldCy * scale
+
+                                        // Apply pan
+                                        offsetX += pan.x
+                                        offsetY += pan.y
+
+                                        // Emit haptic
                                         val strength = (zoomDelta * 2f).coerceIn(0f, 1f)
                                         if (zoomDelta > 0.002f) {
                                             HapticUtil.performVariableTick(haptics, strength)
@@ -138,58 +169,72 @@ class CropActivity : ComponentActivity() {
                             }
                             .onGloballyPositioned { layoutCoordinates ->
                                 val size = layoutCoordinates.size
-                                boxWidth = size.width.toFloat()
-                                boxHeight = size.height.toFloat()
-                                // baseScale will be computed once bitmap is loaded
-                                val bmp = bitmap
-                                if (bmp != null) {
-                                    baseScale = minOf(boxWidth / bmp.width.toFloat(), boxHeight / bmp.height.toFloat())
-                                }
+                                viewWidth = size.width.toFloat()
+                                viewHeight = size.height.toFloat()
                             }
                     ) {
                         val bmp = bitmap
                         if (bmp != null) {
-                            // compute displayed image size and position
-                            val dispW = bmp.width * baseScale * transformScale
-                            val dispH = bmp.height * baseScale * transformScale
-                            val imageLeft = (boxWidth - dispW) / 2f + offset.x
-                            val imageTop = (boxHeight - dispH) / 2f + offset.y
+                            // White background
+                            Canvas(modifier = Modifier.fillMaxSize()) {
+                                drawRect(Color.White, size = size)
 
-                            // Render the bitmap using Image positioned in pixel offsets
-                            val density = LocalDensity.current
-                            val dispWDp = with(density) { dispW.toDp() }
-                            val dispHDp = with(density) { dispH.toDp() }
-                            Image(
-                                bitmap = bmp.asImageBitmap(),
-                                contentDescription = null,
-                                modifier = Modifier
-                                    .size(dispWDp, dispHDp)
-                                    .graphicsLayer {
-                                        translationX = imageLeft
-                                        translationY = imageTop
+                                // Draw bitmap with transform
+                                val dispW = bmp.width * scale
+                                val dispH = bmp.height * scale
+
+                                // Draw the bitmap centered and transformed
+                                drawImage(
+                                    image = bmp.asImageBitmap(),
+                                    dstOffset = androidx.compose.ui.unit.IntOffset(offsetX.toInt(), offsetY.toInt()),
+                                    dstSize = androidx.compose.ui.unit.IntSize(dispW.toInt(), dispH.toInt())
+                                )
+
+                                // Draw strokes
+                                strokes.forEach { stroke ->
+                                    if (stroke.points.size >= 2) {
+                                        val screenPoints = stroke.points.map { worldPoint ->
+                                            Offset(
+                                                worldPoint.x * scale + offsetX,
+                                                worldPoint.y * scale + offsetY
+                                            )
+                                        }
+                                        drawScribbleStroke(screenPoints, Color.Black, stroke.width * scale)
                                     }
-                            )
+                                }
 
+                                // Draw texts
+                                texts.forEach { textItem ->
+                                    val screenX = textItem.x * scale + offsetX
+                                    val screenY = textItem.y * scale + offsetY
+                                    drawStringWithFont(
+                                        context = context,
+                                        text = textItem.text,
+                                        x = screenX,
+                                        y = screenY,
+                                        fontSize = textItem.size * scale,
+                                        colorInt = android.graphics.Color.BLACK
+                                    )
+                                }
+                            }
 
-                            // compute crop overlay size using selected aspect ratio
+                            // Compute crop overlay size using selected aspect ratio
                             val targetAspect = aspectRatios[selectedAspectIndex]
-                            val maxOverlayWidth = boxWidth * 0.9f
-                            val maxOverlayHeight = boxHeight * 0.5f
-                            // Determine overlay width/height constrained to max dims and aspect
+                            val maxOverlayWidth = viewWidth * 0.9f
+                            val maxOverlayHeight = viewHeight * 0.5f
                             var overlayW = maxOverlayWidth
                             var overlayH = overlayW / targetAspect
                             if (overlayH > maxOverlayHeight) {
                                 overlayH = maxOverlayHeight
                                 overlayW = overlayH * targetAspect
                             }
-                            val overlayLeft = (boxWidth - overlayW) / 2f
-                            val overlayTop = (boxHeight - overlayH) / 2f
+                            val overlayLeft = (viewWidth - overlayW) / 2f
+                            val overlayTop = (viewHeight - overlayH) / 2f
 
-                            // prepare colors (capture them outside Canvas so we don't call @Composable inside draw lambda)
                             val overlayColor = Color.Black.copy(alpha = 0.55f)
                             val strokeColor = MaterialTheme.colorScheme.onBackground
 
-                            // draw image and dim/outline overlay
+                            // Draw crop overlay
                             Canvas(modifier = Modifier.fillMaxSize()) {
                                 val cornerRadius = 12.dp.toPx()
 
@@ -238,7 +283,7 @@ class CropActivity : ComponentActivity() {
                                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
                                         horizontalAlignment = Alignment.CenterHorizontally
                                     ) {
-                                        // Aspect picker using connected ButtonGroup with OutlinedToggleButtons (icons only)
+                                        // Aspect picker
                                         Row(
                                             modifier = Modifier
                                                 .padding(horizontal = 8.dp)
@@ -270,7 +315,6 @@ class CropActivity : ComponentActivity() {
                                         }
 
                                         Spacer(modifier = Modifier.size(12.dp))
-
                                         Text(
                                             text = "Crop and resize",
                                             color = MaterialTheme.colorScheme.onBackground
@@ -279,7 +323,6 @@ class CropActivity : ComponentActivity() {
 
                                         Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
                                             if (isShare) {
-                                                // Cancel outlined, Save and Share primary
                                                 OutlinedButton(onClick = { HapticUtil.performClick(haptics); finish() }) {
                                                     Text("Back")
                                                 }
@@ -287,7 +330,7 @@ class CropActivity : ComponentActivity() {
                                                 Button(onClick = {
                                                     HapticUtil.performClick(haptics)
                                                     scope.launch {
-                                                        val outBmp = performCropAndCreateBitmap(bmp, overlayLeft, overlayTop, overlayW, overlayH, imageLeft, imageTop, baseScale, transformScale)
+                                                        val outBmp = performCropAndCreateBitmap(overlayLeft, overlayTop, overlayW, overlayH, offsetX, offsetY, scale, strokes, texts, context)
                                                         if (outBmp == null) {
                                                             Toast.makeText(context, "Nothing to export", Toast.LENGTH_SHORT).show()
                                                             return@launch
@@ -314,7 +357,7 @@ class CropActivity : ComponentActivity() {
                                                 Button(onClick = {
                                                     HapticUtil.performClick(haptics)
                                                     scope.launch {
-                                                        val outBmp = performCropAndCreateBitmap(bmp, overlayLeft, overlayTop, overlayW, overlayH, imageLeft, imageTop, baseScale, transformScale)
+                                                        val outBmp = performCropAndCreateBitmap(overlayLeft, overlayTop, overlayW, overlayH, offsetX, offsetY, scale, strokes, texts, context)
                                                         if (outBmp == null) {
                                                             Toast.makeText(context, "Nothing to export", Toast.LENGTH_SHORT).show()
                                                             return@launch
@@ -349,14 +392,13 @@ class CropActivity : ComponentActivity() {
                                                     Text("Share")
                                                 }
                                             } else {
-                                                // Non-share flow: Cancel outlined + Save primary (finish after save)
                                                 OutlinedButton(onClick = { HapticUtil.performClick(haptics); finish() }) {
                                                     Text("Back")
                                                 }
                                                 Button(onClick = {
                                                     HapticUtil.performClick(haptics)
                                                     scope.launch {
-                                                        val outBmp = performCropAndCreateBitmap(bmp, overlayLeft, overlayTop, overlayW, overlayH, imageLeft, imageTop, baseScale, transformScale)
+                                                        val outBmp = performCropAndCreateBitmap(overlayLeft, overlayTop, overlayW, overlayH, offsetX, offsetY, scale, strokes, texts, context)
                                                         if (outBmp == null) {
                                                             Toast.makeText(context, "Nothing to export", Toast.LENGTH_SHORT).show()
                                                             return@launch
@@ -392,60 +434,113 @@ class CropActivity : ComponentActivity() {
     }
 }
 
-// compute and return the cropped bitmap, or null on failure
+// Compute and return the cropped bitmap, rendering strokes and texts in the crop region
 private suspend fun performCropAndCreateBitmap(
-    bmp: android.graphics.Bitmap,
     overlayLeft: Float,
     overlayTop: Float,
     overlayW: Float,
     overlayH: Float,
-    imageLeft: Float,
-    imageTop: Float,
-    baseScale: Float,
-    transformScale: Float
+    offsetX: Float,
+    offsetY: Float,
+    scale: Float,
+    strokes: List<DrawStroke>,
+    texts: List<TextItem>,
+    context: android.content.Context
 ): android.graphics.Bitmap? {
     return withContext(Dispatchers.Default) {
         try {
-            val scalePxPerBitmap = baseScale * transformScale
+            val outW = overlayW.toInt().coerceAtLeast(1)
+            val outH = overlayH.toInt().coerceAtLeast(1)
 
-            // compute requested crop rect in view coords -> bitmap coords
-            val reqLeftBitmapF = (overlayLeft - imageLeft) / scalePxPerBitmap
-            val reqTopBitmapF = (overlayTop - imageTop) / scalePxPerBitmap
-            val reqWBitmapF = overlayW / scalePxPerBitmap
-            val reqHBitmapF = overlayH / scalePxPerBitmap
-
-            val reqLeftBitmap = reqLeftBitmapF.toInt()
-            val reqTopBitmap = reqTopBitmapF.toInt()
-            val reqWBitmap = reqWBitmapF.toInt()
-            val reqHBitmap = reqHBitmapF.toInt()
-
-            // Intersection with source bitmap
-            val srcLeft = reqLeftBitmap.coerceAtLeast(0)
-            val srcTop = reqTopBitmap.coerceAtLeast(0)
-            val srcRight = (reqLeftBitmap + reqWBitmap).coerceAtMost(bmp.width)
-            val srcBottom = (reqTopBitmap + reqHBitmap).coerceAtMost(bmp.height)
-
-            val srcW = srcRight - srcLeft
-            val srcH = srcBottom - srcTop
-            if (srcW <= 0 || srcH <= 0) return@withContext null
-
-            val outW = reqWBitmap.coerceAtLeast(1)
-            val outH = reqHBitmap.coerceAtLeast(1)
             val outBmp = createBitmap(outW, outH)
             val canvas = android.graphics.Canvas(outBmp)
             canvas.drawColor(android.graphics.Color.WHITE)
 
-            val dstLeft = (srcLeft - reqLeftBitmap)
-            val dstTop = (srcTop - reqTopBitmap)
-            val srcRect = AndroidRect(srcLeft, srcTop, srcRight, srcBottom)
-            val dstRect = AndroidRect(dstLeft, dstTop, dstLeft + srcW, dstTop + srcH)
-            canvas.drawBitmap(bmp, srcRect, dstRect, null)
+            val paint = android.graphics.Paint().apply {
+                isAntiAlias = true
+                style = android.graphics.Paint.Style.STROKE
+                strokeCap = android.graphics.Paint.Cap.ROUND
+                strokeJoin = android.graphics.Paint.Join.ROUND
+                color = android.graphics.Color.BLACK
+            }
+
+            // Convert screen coordinates to world coordinates
+            val worldLeft = (overlayLeft - offsetX) / scale
+            val worldTop = (overlayTop - offsetY) / scale
+            val worldWidth = overlayW / scale
+            val worldHeight = overlayH / scale
+
+            // Draw strokes that fall within the crop region
+            strokes.forEach { s ->
+                if (s.points.size < 2) return@forEach
+
+                paint.color = android.graphics.Color.BLACK
+                paint.strokeWidth = s.width
+
+                val path = android.graphics.Path()
+                val pts = s.points
+
+                // Transform points from world to output bitmap space
+                val (firstX, firstY) = convertWorldToOutput(pts.first(), worldLeft, worldTop, worldWidth, worldHeight, outW, outH)
+                path.moveTo(firstX, firstY)
+
+                for (i in 1 until pts.size) {
+                    val prev = pts[i - 1]
+                    val curr = pts[i]
+                    val (prevX, prevY) = convertWorldToOutput(prev, worldLeft, worldTop, worldWidth, worldHeight, outW, outH)
+                    val (currX, currY) = convertWorldToOutput(curr, worldLeft, worldTop, worldWidth, worldHeight, outW, outH)
+                    val midX = (prevX + currX) / 2f
+                    val midY = (prevY + currY) / 2f
+                    path.quadTo(prevX, prevY, midX, midY)
+                }
+
+                val (lastX, lastY) = convertWorldToOutput(pts.last(), worldLeft, worldTop, worldWidth, worldHeight, outW, outH)
+                path.lineTo(lastX, lastY)
+                canvas.drawPath(path, paint)
+            }
+
+            // Draw texts that fall within the crop region
+            val textPaint = android.graphics.Paint().apply {
+                isAntiAlias = true
+                style = android.graphics.Paint.Style.FILL
+                color = android.graphics.Color.BLACK
+            }
+
+            texts.forEach { t ->
+                val (textX, textY) = convertWorldToOutput(Offset(t.x, t.y), worldLeft, worldTop, worldWidth, worldHeight, outW, outH)
+                textPaint.textSize = t.size
+                try {
+                    val tf: android.graphics.Typeface? = androidx.core.content.res.ResourcesCompat.getFont(context, R.font.font)
+                    if (tf != null) textPaint.typeface = tf
+                } catch (_: Exception) { }
+
+                val fm = textPaint.fontMetrics
+                val baseline = textY - fm.ascent
+                canvas.drawText(t.text, textX, baseline, textPaint)
+            }
 
             outBmp
         } catch (_: Exception) {
             null
         }
     }
+}
+
+// Helper function to convert world coordinates to output bitmap coordinates
+private fun convertWorldToOutput(
+    worldPoint: Offset,
+    worldLeft: Float,
+    worldTop: Float,
+    worldWidth: Float,
+    worldHeight: Float,
+    outW: Int,
+    outH: Int
+): Pair<Float, Float> {
+    val relX = (worldPoint.x - worldLeft) / worldWidth
+    val relY = (worldPoint.y - worldTop) / worldHeight
+    val outX = relX * outW
+    val outY = relY * outH
+    return Pair(outX, outY)
 }
 
 
