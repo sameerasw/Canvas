@@ -34,6 +34,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.RoundRect
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.geometry.Rect as ComposeRect
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathFillType
@@ -185,7 +186,7 @@ class CropActivity : ComponentActivity() {
                             val overlayTop = (boxHeight - overlayH) / 2f
 
                             // prepare colors (capture them outside Canvas so we don't call @Composable inside draw lambda)
-                            val overlayColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f)
+                            val overlayColor = Color.Black.copy(alpha = 0.55f)
                             val strokeColor = MaterialTheme.colorScheme.onBackground
 
                             // draw image and dim/outline overlay
