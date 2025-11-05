@@ -10,6 +10,7 @@ object SettingsRepository {
     private const val PREFS_NAME = "canvas_prefs"
     private const val KEY_HAPTICS_LEVEL = "haptics_level"
     private const val KEY_PIN_TOP_TOOLBAR = "pin_top_toolbar"
+    private const val KEY_CANVAS_BACKGROUND = "canvas_background"
 
     enum class HapticsLevel(val value: Int) {
         OFF(0),
@@ -18,6 +19,16 @@ object SettingsRepository {
 
         companion object {
             fun fromValue(v: Int) = HapticsLevel.entries.firstOrNull { it.value == v } ?: FULL
+        }
+    }
+
+    enum class CanvasBackgroundType(val value: Int) {
+        NONE(0),
+        DOTS(1),
+        LINES(2);
+
+        companion object {
+            fun fromValue(v: Int) = CanvasBackgroundType.entries.firstOrNull { it.value == v } ?: NONE
         }
     }
 
@@ -46,5 +57,15 @@ object SettingsRepository {
 
     fun setPinTopToolbar(pin: Boolean) {
         prefs?.edit()?.putBoolean(KEY_PIN_TOP_TOOLBAR, pin)?.apply()
+    }
+
+    // Canvas background setting (NONE by default)
+    fun getCanvasBackground(): CanvasBackgroundType {
+        val p = prefs ?: return CanvasBackgroundType.NONE
+        return CanvasBackgroundType.fromValue(p.getInt(KEY_CANVAS_BACKGROUND, CanvasBackgroundType.NONE.value))
+    }
+
+    fun setCanvasBackground(background: CanvasBackgroundType) {
+        prefs?.edit()?.putInt(KEY_CANVAS_BACKGROUND, background.value)?.apply()
     }
 }

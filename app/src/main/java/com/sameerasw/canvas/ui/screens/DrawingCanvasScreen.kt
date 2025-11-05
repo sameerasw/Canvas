@@ -21,7 +21,9 @@ import com.sameerasw.canvas.model.ToolType
 import com.sameerasw.canvas.data.TextItem
 import com.sameerasw.canvas.ui.drawing.StrokeDrawer.drawScribbleStroke
 import com.sameerasw.canvas.ui.drawing.TextDrawer.drawStringWithFont
+import com.sameerasw.canvas.ui.drawing.BackgroundDrawer
 import com.sameerasw.canvas.utils.HapticUtil
+import com.sameerasw.canvas.SettingsRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -229,6 +231,10 @@ fun DrawingCanvasScreen(
                 )
             }
     ) {
+        // Draw background pattern with canvas transform
+        val backgroundType = SettingsRepository.getCanvasBackground()
+        BackgroundDrawer.drawBackgroundOnCompose(this, backgroundType, size.width, size.height, scale.value, offsetX.value, offsetY.value)
+
         strokes.forEach { stroke ->
             val screenPoints = stroke.points.map { world -> Offset(world.x * scale.value + offsetX.value, world.y * scale.value + offsetY.value) }
             if (screenPoints.size >= 2) drawScribbleStroke(screenPoints, strokeColor, stroke.width * scale.value)

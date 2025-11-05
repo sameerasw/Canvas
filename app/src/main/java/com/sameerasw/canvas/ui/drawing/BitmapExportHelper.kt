@@ -11,6 +11,7 @@ import androidx.core.content.res.ResourcesCompat
 import com.sameerasw.canvas.R
 import com.sameerasw.canvas.model.DrawStroke
 import com.sameerasw.canvas.data.TextItem
+import com.sameerasw.canvas.SettingsRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import androidx.core.graphics.createBitmap
@@ -29,6 +30,10 @@ object BitmapExportHelper {
         val bmp = createBitmap(outputWidth, outputHeight)
         val canvas = AndroidCanvas(bmp)
         canvas.drawColor(android.graphics.Color.WHITE)
+
+        // Draw background pattern if enabled
+        val backgroundType = SettingsRepository.getCanvasBackground()
+        BackgroundDrawer.drawBackgroundOnAndroidCanvas(canvas, backgroundType, outputWidth, outputHeight, android.graphics.Color.BLACK, extendFactor = 1.5f)
 
         val paint = Paint().apply {
             isAntiAlias = true
@@ -102,6 +107,10 @@ object BitmapExportHelper {
         val full = createBitmap(viewWidth.coerceAtLeast(1), viewHeight.coerceAtLeast(1))
         val canvas = AndroidCanvas(full)
         canvas.drawColor(android.graphics.Color.WHITE)
+
+        // Draw background pattern if enabled
+        val backgroundType = SettingsRepository.getCanvasBackground()
+        BackgroundDrawer.drawBackgroundOnAndroidCanvas(canvas, backgroundType, viewWidth, viewHeight, android.graphics.Color.BLACK, extendFactor = 1.5f)
 
         val paint = Paint().apply {
             isAntiAlias = true

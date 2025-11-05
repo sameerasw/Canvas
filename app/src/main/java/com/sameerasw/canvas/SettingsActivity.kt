@@ -17,6 +17,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
+import androidx.compose.material3.ButtonGroupDefaults
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.ToggleButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -50,11 +53,12 @@ class SettingsActivity : ComponentActivity() {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun SettingsScreen() {
     var level by remember { mutableStateOf(SettingsRepository.getHapticsLevel().value.toFloat()) }
     var pinTop by remember { mutableStateOf(SettingsRepository.getPinTopToolbar()) }
+    var canvasBackground by remember { mutableStateOf(SettingsRepository.getCanvasBackground()) }
     val context = LocalContext.current
 
     Column(
@@ -136,6 +140,42 @@ fun SettingsScreen() {
                 steps = 1 // for 3 values use steps = 1
             )
 
+            // Canvas background setting
+            Text(
+                text = "Canvas background",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(top = 12.dp)
+            )
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
+            ) {
+                val backgroundOptions = listOf(
+                    "None",
+                    "Dots",
+                    "Lines"
+                )
+                backgroundOptions.forEachIndexed { index, label ->
+                    ToggleButton(
+                        checked = canvasBackground == SettingsRepository.CanvasBackgroundType.entries[index],
+                        onCheckedChange = {
+                            canvasBackground = SettingsRepository.CanvasBackgroundType.entries[index]
+                            SettingsRepository.setCanvasBackground(canvasBackground)
+                        },
+                        modifier = Modifier.weight(1f),
+                        shapes = when (index) {
+                            0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
+                            backgroundOptions.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
+                            else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
+                        },
+                    ) {
+                        Text(label)
+                    }
+                }
+            }
         }
     }
 }
