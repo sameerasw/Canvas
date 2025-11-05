@@ -1,4 +1,4 @@
-package com.sameerasw.canvas.ui.components.toptoolbar
+package com.sameerasw.canvas.ui.components.bottomtoolbar
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Spring
