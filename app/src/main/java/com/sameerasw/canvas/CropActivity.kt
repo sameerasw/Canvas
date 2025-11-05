@@ -13,17 +13,21 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonGroupDefaults
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
+import androidx.compose.material3.ToggleButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -66,6 +70,7 @@ class CropActivity : ComponentActivity() {
 
         val imageUri = imageUriString.toUri()
 
+        @OptIn(ExperimentalMaterial3ExpressiveApi::class)
         setContent {
             CanvasTheme {
                 Surface(
@@ -214,29 +219,6 @@ class CropActivity : ComponentActivity() {
                                 )
                             }
 
-                            // Aspect picker UI: small icon-only segmented row placed above the bottom card
-                            Row(
-                                modifier = Modifier
-                                    .offset(y = (-120).dp)
-                                    .align(Alignment.BottomCenter),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                // 9:16 icon
-                                IconButton(onClick = { selectedAspectIndex = 0 }) {
-                                    Icon(painter = painterResource(id = R.drawable.rounded_crop_9_16_24), contentDescription = "9:16")
-                                }
-                                // 1:1 icon
-                                IconButton(onClick = { selectedAspectIndex = 1 }) {
-                                    Icon(painter = painterResource(id = R.drawable.rounded_crop_square_24), contentDescription = "1:1")
-                                }
-                                // 16:9 icon
-                                IconButton(onClick = { selectedAspectIndex = 2 }) {
-                                    Icon(painter = painterResource(id = R.drawable.rounded_rectangle_24), contentDescription = "16:9")
-                                }
-
-                            }
-
                             // Bottom card with Cancel/Save/Share
                             Box(
                                 modifier = Modifier
@@ -247,7 +229,7 @@ class CropActivity : ComponentActivity() {
                                     modifier = Modifier
                                         .padding(bottom = 24.dp)
                                         .padding(horizontal = 16.dp),
-                                    shape = RoundedCornerShape(12.dp),
+                                    shape = RoundedCornerShape(24.dp),
                                     color = MaterialTheme.colorScheme.surface,
                                     tonalElevation = 0.dp
                                 ) {
@@ -255,16 +237,49 @@ class CropActivity : ComponentActivity() {
                                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
                                         horizontalAlignment = Alignment.CenterHorizontally
                                     ) {
+                                        // Aspect picker using connected ButtonGroup with OutlinedToggleButtons (icons only)
+                                        Row(
+                                            modifier = Modifier
+                                                .padding(horizontal = 8.dp)
+                                                .fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween),
+                                        ) {
+                                            val aspectIcons = listOf(
+                                                R.drawable.rounded_crop_9_16_24,
+                                                R.drawable.rounded_crop_square_24,
+                                                R.drawable.rounded_rectangle_24
+                                            )
+                                            aspectIcons.forEachIndexed { index, iconRes ->
+                                                ToggleButton(
+                                                    checked = selectedAspectIndex == index,
+                                                    onCheckedChange = { selectedAspectIndex = index },
+                                                    modifier = Modifier.weight(1f),
+                                                    shapes = when (index) {
+                                                        0 -> ButtonGroupDefaults.connectedLeadingButtonShapes()
+                                                        aspectIcons.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
+                                                        else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
+                                                    },
+                                                ) {
+                                                    Icon(
+                                                        painter = painterResource(id = iconRes),
+                                                        contentDescription = null
+                                                    )
+                                                }
+                                            }
+                                        }
+
+                                        Spacer(modifier = Modifier.size(12.dp))
+
                                         Text(
-                                            text = "Crop to continue",
+                                            text = "Crop and resize",
                                             color = MaterialTheme.colorScheme.onBackground
                                         )
-                                        androidx.compose.foundation.layout.Spacer(modifier = Modifier.size(12.dp))
+                                        Spacer(modifier = Modifier.size(12.dp))
 
                                         Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
                                             if (isShare) {
                                                 // Cancel outlined, Save and Share primary
-                                                androidx.compose.material3.OutlinedButton(onClick = { HapticUtil.performClick(haptics); finish() }) {
+                                                OutlinedButton(onClick = { HapticUtil.performClick(haptics); finish() }) {
                                                     Text("Cancel")
                                                 }
 
@@ -290,6 +305,8 @@ class CropActivity : ComponentActivity() {
                                                         }
                                                     }
                                                 }) {
+                                                    Icon(painter = painterResource(id = R.drawable.rounded_download_24), contentDescription = "Save")
+                                                    Spacer(modifier = Modifier.size(8.dp))
                                                     Text("Save")
                                                 }
 
@@ -326,12 +343,14 @@ class CropActivity : ComponentActivity() {
                                                         }
                                                     }
                                                 }) {
+                                                    Icon(painter = painterResource(id = R.drawable.rounded_ios_share_24), contentDescription = "Share")
+                                                    Spacer(modifier = Modifier.size(8.dp))
                                                     Text("Share")
                                                 }
                                             } else {
                                                 // Non-share flow: Cancel outlined + Save primary (finish after save)
-                                                androidx.compose.material3.OutlinedButton(onClick = { HapticUtil.performClick(haptics); finish() }) {
-                                                    Text("Cancel")
+                                                OutlinedButton(onClick = { HapticUtil.performClick(haptics); finish() }) {
+                                                    Text("Back")
                                                 }
                                                 Button(onClick = {
                                                     HapticUtil.performClick(haptics)
@@ -365,12 +384,12 @@ class CropActivity : ComponentActivity() {
                                 }
                             }
                         }
-                     }
-                 }
-             }
-         }
-     }
- }
+                    }
+                }
+            }
+        }
+    }
+}
 
 // compute and return the cropped bitmap, or null on failure
 private suspend fun performCropAndCreateBitmap(
@@ -427,3 +446,5 @@ private suspend fun performCropAndCreateBitmap(
         }
     }
 }
+
+
