@@ -477,26 +477,99 @@ private suspend fun performCropAndCreateBitmap(
                 paint.color = s.color.toArgb()
                 paint.strokeWidth = s.width
 
-                val path = android.graphics.Path()
-                val pts = s.points
+                when {
+                    s.isArrow -> {
+                        // Draw arrow
+                        val start = s.points.first()
+                        val end = s.points.last()
+                        val (startX, startY) = convertWorldToOutput(start, worldLeft, worldTop, worldWidth, worldHeight, outW, outH)
+                        val (endX, endY) = convertWorldToOutput(end, worldLeft, worldTop, worldWidth, worldHeight, outW, outH)
 
-                // Transform points from world to output bitmap space
-                val (firstX, firstY) = convertWorldToOutput(pts.first(), worldLeft, worldTop, worldWidth, worldHeight, outW, outH)
-                path.moveTo(firstX, firstY)
+                        val angle = kotlin.math.atan2((endY - startY).toDouble(), (endX - startX).toDouble())
+                        val arrowLength = (s.width * 3.5f).coerceAtLeast(12f)
+                        val arrowAngle = Math.PI / 7
 
-                for (i in 1 until pts.size) {
-                    val prev = pts[i - 1]
-                    val curr = pts[i]
-                    val (prevX, prevY) = convertWorldToOutput(prev, worldLeft, worldTop, worldWidth, worldHeight, outW, outH)
-                    val (currX, currY) = convertWorldToOutput(curr, worldLeft, worldTop, worldWidth, worldHeight, outW, outH)
-                    val midX = (prevX + currX) / 2f
-                    val midY = (prevY + currY) / 2f
-                    path.quadTo(prevX, prevY, midX, midY)
+                        val arrow1X = (endX - arrowLength * kotlin.math.cos(angle - arrowAngle)).toFloat()
+                        val arrow1Y = (endY - arrowLength * kotlin.math.sin(angle - arrowAngle)).toFloat()
+                        val arrow2X = (endX - arrowLength * kotlin.math.cos(angle + arrowAngle)).toFloat()
+                        val arrow2Y = (endY - arrowLength * kotlin.math.sin(angle + arrowAngle)).toFloat()
+
+                        val arrowBaseX = (endX - arrowLength * 0.7f * kotlin.math.cos(angle)).toFloat()
+                        val arrowBaseY = (endY - arrowLength * 0.7f * kotlin.math.sin(angle)).toFloat()
+
+                        // Draw arrow line
+                        canvas.drawLine(startX, startY, arrowBaseX, arrowBaseY, paint)
+
+                        // Draw arrow head
+                        val arrowPath = android.graphics.Path()
+                        arrowPath.moveTo(endX, endY)
+                        arrowPath.lineTo(arrow1X, arrow1Y)
+                        arrowPath.lineTo(arrow2X, arrow2Y)
+                        arrowPath.close()
+                        val prevStyle = paint.style
+                        paint.style = android.graphics.Paint.Style.FILL
+                        canvas.drawPath(arrowPath, paint)
+                        paint.style = prevStyle
+                    }
+                    s.shapeType != null -> {
+                        // Draw shapes
+                        val start = s.points.first()
+                        val end = s.points.last()
+                        val (startX, startY) = convertWorldToOutput(start, worldLeft, worldTop, worldWidth, worldHeight, outW, outH)
+                        val (endX, endY) = convertWorldToOutput(end, worldLeft, worldTop, worldWidth, worldHeight, outW, outH)
+                        val path = android.graphics.Path()
+
+                        paint.style = if (s.isFilled) android.graphics.Paint.Style.FILL else android.graphics.Paint.Style.STROKE
+
+                        when (s.shapeType) {
+                            com.sameerasw.canvas.model.ShapeType.RECTANGLE -> {
+                                path.addRect(startX, startY, endX, endY, android.graphics.Path.Direction.CW)
+                            }
+                            com.sameerasw.canvas.model.ShapeType.CIRCLE -> {
+                                val dx = endX - startX
+                                val dy = endY - startY
+                                val radius = kotlin.math.sqrt(dx * dx + dy * dy)
+                                path.addCircle(startX, startY, radius, android.graphics.Path.Direction.CW)
+                            }
+                            com.sameerasw.canvas.model.ShapeType.TRIANGLE -> {
+                                path.moveTo(startX, endY)
+                                path.lineTo((startX + endX) / 2f, startY)
+                                path.lineTo(endX, endY)
+                                path.close()
+                            }
+                            com.sameerasw.canvas.model.ShapeType.LINE -> {
+                                canvas.drawLine(startX, startY, endX, endY, paint)
+                            }
+                        }
+                        if (s.shapeType != com.sameerasw.canvas.model.ShapeType.LINE) {
+                            canvas.drawPath(path, paint)
+                        }
+                        paint.style = android.graphics.Paint.Style.STROKE
+                    }
+                    else -> {
+                        // Draw regular strokes
+                        val path = android.graphics.Path()
+                        val pts = s.points
+
+                        // Transform points from world to output bitmap space
+                        val (firstX, firstY) = convertWorldToOutput(pts.first(), worldLeft, worldTop, worldWidth, worldHeight, outW, outH)
+                        path.moveTo(firstX, firstY)
+
+                        for (i in 1 until pts.size) {
+                            val prev = pts[i - 1]
+                            val curr = pts[i]
+                            val (prevX, prevY) = convertWorldToOutput(prev, worldLeft, worldTop, worldWidth, worldHeight, outW, outH)
+                            val (currX, currY) = convertWorldToOutput(curr, worldLeft, worldTop, worldWidth, worldHeight, outW, outH)
+                            val midX = (prevX + currX) / 2f
+                            val midY = (prevY + currY) / 2f
+                            path.quadTo(prevX, prevY, midX, midY)
+                        }
+
+                        val (lastX, lastY) = convertWorldToOutput(pts.last(), worldLeft, worldTop, worldWidth, worldHeight, outW, outH)
+                        path.lineTo(lastX, lastY)
+                        canvas.drawPath(path, paint)
+                    }
                 }
-
-                val (lastX, lastY) = convertWorldToOutput(pts.last(), worldLeft, worldTop, worldWidth, worldHeight, outW, outH)
-                path.lineTo(lastX, lastY)
-                canvas.drawPath(path, paint)
             }
 
             // Draw texts that fall within the crop region
