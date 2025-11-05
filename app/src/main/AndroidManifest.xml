@@ -29,6 +29,12 @@
             android:exported="false"
             android:theme="@style/Theme.Canvas" />
 
+        <!-- Settings Activity -->
+        <activity
+            android:name=".SettingsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Canvas" />
+
         <!-- FileProvider for sharing temporary image files -->
         <provider
             android:name="androidx.core.content.FileProvider"

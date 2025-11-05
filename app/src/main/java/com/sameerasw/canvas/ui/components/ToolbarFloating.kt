@@ -48,7 +48,7 @@ fun ToolbarFloating(
                 )
             }
 
-            Spacer(modifier = Modifier.width(if (expanded) 8.dp else 4.dp))
+            Spacer(modifier = Modifier.width(if (expanded) 4.dp else (-4).dp))
 
             // Pen tool
             IconButton(
@@ -64,7 +64,7 @@ fun ToolbarFloating(
                 )
             }
 
-            Spacer(modifier = Modifier.width(if (expanded) 8.dp else 4.dp))
+            Spacer(modifier = Modifier.width(if (expanded) 4.dp else (-4).dp))
         },
         content = {
             FilledIconButton(
@@ -88,7 +88,7 @@ fun ToolbarFloating(
         },
         trailingContent = {
 
-            Spacer(modifier = Modifier.width(if (expanded) 8.dp else 4.dp))
+            Spacer(modifier = Modifier.width(if (expanded) 4.dp else (-4).dp))
 
             // Eraser tool
             IconButton(
@@ -105,7 +105,7 @@ fun ToolbarFloating(
             }
 
 
-            Spacer(modifier = Modifier.width(if (expanded) 8.dp else 4.dp))
+            Spacer(modifier = Modifier.width(if (expanded) 4.dp else (-4).dp))
 
             // Text tool
             IconButton(

@@ -9,13 +9,25 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.isActive
 import androidx.lifecycle.Lifecycle
+import com.sameerasw.canvas.SettingsRepository
 
 object HapticUtil {
+    private fun enabledLevel(): SettingsRepository.HapticsLevel {
+        return try {
+            SettingsRepository.getHapticsLevel()
+        } catch (_: Exception) {
+            SettingsRepository.HapticsLevel.FULL
+        }
+    }
+
     /**
      * Perform a light tick haptic - for subtle interactions like swiping
      */
     fun performLightTick(haptics: HapticFeedback?) {
         try {
+            val level = enabledLevel()
+            if (level == SettingsRepository.HapticsLevel.OFF) return
+            if (level == SettingsRepository.HapticsLevel.MIN) return // MIN disables subtle ticks
             haptics?.performHapticFeedback(HapticFeedbackType.TextHandleMove)
         } catch (_: Exception) {
         }
@@ -26,6 +38,9 @@ object HapticUtil {
      */
     fun performClick(haptics: HapticFeedback?) {
         try {
+            val level = enabledLevel()
+            if (level == SettingsRepository.HapticsLevel.OFF) return
+            // MIN allows clicks
             haptics?.performHapticFeedback(HapticFeedbackType.LongPress)
         } catch (_: Exception) {
         }
@@ -36,6 +51,9 @@ object HapticUtil {
      */
     fun performToggleOn(haptics: HapticFeedback?) {
         try {
+            val level = enabledLevel()
+            if (level == SettingsRepository.HapticsLevel.OFF) return
+            // MIN allows toggles
             haptics?.performHapticFeedback(HapticFeedbackType.LongPress)
         } catch (_: Exception) {
         }
@@ -46,6 +64,9 @@ object HapticUtil {
      */
     fun performToggleOff(haptics: HapticFeedback?) {
         try {
+            val level = enabledLevel()
+            if (level == SettingsRepository.HapticsLevel.OFF) return
+            if (level == SettingsRepository.HapticsLevel.MIN) return
             haptics?.performHapticFeedback(HapticFeedbackType.TextHandleMove)
         } catch (_: Exception) {
         }
@@ -56,6 +77,9 @@ object HapticUtil {
      */
     fun performSuccess(haptics: HapticFeedback?) {
         try {
+            val level = enabledLevel()
+            if (level == SettingsRepository.HapticsLevel.OFF) return
+            if (level == SettingsRepository.HapticsLevel.MIN) return
             CoroutineScope(Dispatchers.Main).launch {
                 haptics?.performHapticFeedback(HapticFeedbackType.LongPress)
                 delay(100)
@@ -72,6 +96,9 @@ object HapticUtil {
      */
     fun performFadeOut(haptics: HapticFeedback?) {
         try {
+            val level = enabledLevel()
+            if (level == SettingsRepository.HapticsLevel.OFF) return
+            if (level == SettingsRepository.HapticsLevel.MIN) return
             CoroutineScope(Dispatchers.Main).launch {
                 // start medium, then two lighter taps to fade out
                 haptics?.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -90,6 +117,9 @@ object HapticUtil {
      */
     fun performVariableTick(haptics: HapticFeedback?, strength: Float) {
         try {
+            val level = enabledLevel()
+            if (level == SettingsRepository.HapticsLevel.OFF) return
+            if (level == SettingsRepository.HapticsLevel.MIN) return // MIN disables variable ticks
             val s = strength.coerceIn(0f, 1f)
             // Emit 1..3 light ticks with short spacing so perception scales smoothly with strength.
             CoroutineScope(Dispatchers.Main).launch {
@@ -118,10 +148,6 @@ object HapticUtil {
     /**
      * Start repeating haptic ticks for loading states
      * Returns a Job that can be cancelled to stop the haptics
-     *
-     * If a lifecycle is provided, haptics will only fire while the lifecycle
-     * is at least STARTED (i.e. the app/screen is in foreground). This prevents
-     * haptics from triggering while the app is backgrounded.
      */
     fun startLoadingHaptics(haptics: HapticFeedback?, lifecycle: Lifecycle? = null): Job {
         return CoroutineScope(Dispatchers.Main).launch {
@@ -129,7 +155,10 @@ object HapticUtil {
                 try {
                     val shouldRun = lifecycle?.currentState?.isAtLeast(Lifecycle.State.STARTED) ?: true
                     if (shouldRun) {
-                        performLightTick(haptics)
+                        val level = enabledLevel()
+                        if (level != SettingsRepository.HapticsLevel.OFF && level != SettingsRepository.HapticsLevel.MIN) {
+                            performLightTick(haptics)
+                        }
                         delay(200) // 5 times per second
                     } else {
                         // Backoff while app is backgrounded; poll until it becomes STARTED again

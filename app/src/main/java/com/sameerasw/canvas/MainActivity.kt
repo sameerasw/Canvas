@@ -60,6 +60,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // init settings repository early so HapticUtil can read preferences
+        SettingsRepository.init(this)
         enableEdgeToEdge()
         setContent {
             CanvasTheme {
@@ -218,7 +220,9 @@ fun CanvasApp(viewModel: CanvasViewModel) {
                     },
                     onSettings = {
                         topMenuOpen = false
-                        Toast.makeText(context, "Settings", Toast.LENGTH_SHORT).show()
+                        // open settings activity
+                        val intent = Intent(context, SettingsActivity::class.java)
+                        context.startActivity(intent)
                     },
                     onAbout = {
                         topMenuOpen = false
