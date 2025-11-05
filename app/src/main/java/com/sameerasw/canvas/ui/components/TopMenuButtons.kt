@@ -1,8 +1,11 @@
 package com.sameerasw.canvas.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.material3.Icon
@@ -28,8 +31,12 @@ fun TopMenuButtons(
 
     AnimatedVisibility(
         visible = visible,
-        enter = slideInHorizontally(initialOffsetX = { it }),
-        exit = slideOutHorizontally(targetOffsetX = { it })
+        // Combine a size transform (expand/shrink) with slide so the container grows/shrinks in layout
+        // and the content slides left->right when appearing. Use the same tween for sync.
+        enter = expandHorizontally(expandFrom = Alignment.Start, animationSpec = tween(260)) +
+                slideInHorizontally(initialOffsetX = { -it }, animationSpec = tween(260)),
+        exit = slideOutHorizontally(targetOffsetX = { -it }, animationSpec = tween(260)) +
+               shrinkHorizontally(shrinkTowards = Alignment.Start, animationSpec = tween(260))
     ) {
         Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
