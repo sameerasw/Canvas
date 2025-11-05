@@ -107,7 +107,7 @@ fun TopOverlayToolbar(
                                 IconButton(onClick = {
                                     HapticUtil.performClick(haptics)
                                     onUndo()
-                                }, modifier = Modifier.size(40.dp)) {
+                                }, modifier = Modifier.size(48.dp)) {
                                     Icon(
                                         painter = painterResource(id = R.drawable.rounded_undo_24),
                                         contentDescription = "Undo",
@@ -125,7 +125,7 @@ fun TopOverlayToolbar(
                                 IconButton(onClick = {
                                     HapticUtil.performClick(haptics)
                                     onRedo()
-                                }, modifier = Modifier.size(40.dp)) {
+                                }, modifier = Modifier.size(48.dp)) {
                                     Icon(
                                         painter = painterResource(id = R.drawable.rounded_redo_24),
                                         contentDescription = "Redo",
