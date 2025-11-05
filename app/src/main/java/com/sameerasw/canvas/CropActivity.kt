@@ -145,7 +145,7 @@ class CropActivity : ComponentActivity() {
 
                                         // Zoom around centroid with proper math
                                         val oldScale = scale
-                                        scale = (scale * zoom).coerceIn(0.5f, 5f)
+                                        scale = (scale * zoom).coerceIn(0.2f, 5f)
 
                                         // Convert centroid from screen space to world space
                                         val worldCx = (centroid.x - offsetX) / oldScale
