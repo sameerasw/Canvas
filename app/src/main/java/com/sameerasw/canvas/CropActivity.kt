@@ -38,6 +38,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathFillType
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalContext
@@ -199,7 +200,7 @@ class CropActivity : ComponentActivity() {
                                                 worldPoint.y * scale + offsetY
                                             )
                                         }
-                                        drawScribbleStroke(screenPoints, Color.Black, stroke.width * scale)
+                                        drawScribbleStroke(screenPoints, stroke.color, stroke.width * scale)
                                     }
                                 }
 
@@ -213,7 +214,7 @@ class CropActivity : ComponentActivity() {
                                         x = screenX,
                                         y = screenY,
                                         fontSize = textItem.size * scale,
-                                        colorInt = android.graphics.Color.BLACK
+                                        colorInt = textItem.color.toArgb()
                                     )
                                 }
                             }
@@ -461,7 +462,6 @@ private suspend fun performCropAndCreateBitmap(
                 style = android.graphics.Paint.Style.STROKE
                 strokeCap = android.graphics.Paint.Cap.ROUND
                 strokeJoin = android.graphics.Paint.Join.ROUND
-                color = android.graphics.Color.BLACK
             }
 
             // Convert screen coordinates to world coordinates
@@ -474,7 +474,7 @@ private suspend fun performCropAndCreateBitmap(
             strokes.forEach { s ->
                 if (s.points.size < 2) return@forEach
 
-                paint.color = android.graphics.Color.BLACK
+                paint.color = s.color.toArgb()
                 paint.strokeWidth = s.width
 
                 val path = android.graphics.Path()
@@ -503,11 +503,11 @@ private suspend fun performCropAndCreateBitmap(
             val textPaint = android.graphics.Paint().apply {
                 isAntiAlias = true
                 style = android.graphics.Paint.Style.FILL
-                color = android.graphics.Color.BLACK
             }
 
             texts.forEach { t ->
                 val (textX, textY) = convertWorldToOutput(Offset(t.x, t.y), worldLeft, worldTop, worldWidth, worldHeight, outW, outH)
+                textPaint.color = t.color.toArgb()
                 textPaint.textSize = t.size
                 try {
                     val tf: android.graphics.Typeface? = androidx.core.content.res.ResourcesCompat.getFont(context, R.font.font)

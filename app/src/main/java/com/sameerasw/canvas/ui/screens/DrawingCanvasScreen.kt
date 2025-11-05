@@ -58,7 +58,6 @@ fun DrawingCanvasScreen(
     val haptics = LocalHapticFeedback.current
     val context = LocalContext.current
     val currentStroke = remember { mutableStateListOf<Offset>() }
-    val themeColor = currentColor.toArgb()
     val eraserRadius = 30f
     val shapeStartPoint = remember { mutableStateOf<Offset?>(null) }
 
@@ -351,7 +350,7 @@ fun DrawingCanvasScreen(
             val sx = t.x * scale.value + offsetX.value
             val sy = t.y * scale.value + offsetY.value
             val fontSize = t.size * scale.value
-            drawStringWithFont(context, t.text, sx, sy, fontSize, themeColor)
+            drawStringWithFont(context, t.text, sx, sy, fontSize, t.color.toArgb())
         }
 
         when (currentTool) {

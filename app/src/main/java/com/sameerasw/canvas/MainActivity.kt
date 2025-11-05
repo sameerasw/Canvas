@@ -472,7 +472,8 @@ fun CanvasApp(viewModel: CanvasViewModel) {
                         x = pendingTextPosition.x,
                         y = pendingTextPosition.y,
                         text = pendingTextValue,
-                        size = textSize
+                        size = textSize,
+                        color = currentColor
                     )
                 )
             }

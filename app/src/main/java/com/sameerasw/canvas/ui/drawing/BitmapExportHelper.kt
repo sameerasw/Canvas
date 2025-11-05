@@ -125,10 +125,10 @@ object BitmapExportHelper {
         val textPaint = Paint().apply {
             isAntiAlias = true
             style = Paint.Style.FILL
-            color = android.graphics.Color.BLACK
         }
 
         texts.forEach { t ->
+            textPaint.color = t.color.toArgb()
             textPaint.textSize = t.size
             try {
                 val tf: Typeface? = ResourcesCompat.getFont(context, R.font.font)
@@ -276,10 +276,10 @@ object BitmapExportHelper {
         val textPaint = Paint().apply {
             isAntiAlias = true
             style = Paint.Style.FILL
-            color = android.graphics.Color.BLACK
         }
 
         texts.forEach { t ->
+            textPaint.color = t.color.toArgb()
             textPaint.textSize = t.size * transformScale
             try {
                 val tf: Typeface? = ResourcesCompat.getFont(context, R.font.font)
