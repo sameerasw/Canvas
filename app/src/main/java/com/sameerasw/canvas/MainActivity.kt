@@ -65,7 +65,7 @@ class MainActivity : ComponentActivity() {
             CanvasTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.surfaceContainer
+                    color = MaterialTheme.colorScheme.background
                 ) {
                     CanvasApp(viewModel)
                 }
