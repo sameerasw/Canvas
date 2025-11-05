@@ -93,7 +93,6 @@ fun CanvasApp(viewModel: CanvasViewModel) {
 
     var expanded by remember { mutableStateOf(false) }
     var topMenuOpen by remember { mutableStateOf(false) }
-    // Pin top toolbar setting
     var pinTopToolbar by remember { mutableStateOf(SettingsRepository.getPinTopToolbar()) }
     var penWidth by remember { mutableStateOf(2.5f) }
     var prevPenValue by remember { mutableStateOf(penWidth) }
@@ -107,10 +106,20 @@ fun CanvasApp(viewModel: CanvasViewModel) {
     var pendingTextPosition by remember { mutableStateOf(Offset.Zero) }
     var pendingTextValue by remember { mutableStateOf("") }
     var selectedTextId by remember { mutableStateOf<Long?>(null) }
-    // show confirmation when user taps Clear in top menu
     var showClearConfirm by remember { mutableStateOf(false) }
-    // show About dialog
     var showAboutDialog by remember { mutableStateOf(false) }
+    
+    var currentColor by remember { mutableStateOf(androidx.compose.ui.graphics.Color.Black) }
+    var currentPenStyle by remember { mutableStateOf(com.sameerasw.canvas.model.PenStyle.NORMAL) }
+    var currentShapeType by remember { mutableStateOf(com.sameerasw.canvas.model.ShapeType.RECTANGLE) }
+    var shapeFilled by remember { mutableStateOf(false) }
+    var showColorPicker by remember { mutableStateOf(false) }
+    var showPenStyleSelector by remember { mutableStateOf(false) }
+    var showShapeSelector by remember { mutableStateOf(false) }
+    
+    // Tool-specific widths
+    var arrowWidth by remember { mutableStateOf(5f) }
+    var shapeWidth by remember { mutableStateOf(5f) }
 
     // Canvas viewport tracking (pixels)
     var canvasScale by remember { mutableStateOf(1f) }
@@ -122,13 +131,18 @@ fun CanvasApp(viewModel: CanvasViewModel) {
     val context = LocalContext.current
 
     Box(modifier = Modifier.fillMaxSize()) {
-        // Canvas area - bottom layer
         DrawingCanvasScreen(
             currentTool = currentTool,
             strokes = strokes,
             texts = texts,
             penWidth = penWidth,
             textSize = textSize,
+            currentColor = currentColor,
+            currentPenStyle = currentPenStyle,
+            currentShapeType = currentShapeType,
+            arrowWidth = arrowWidth,
+            shapeWidth = shapeWidth,
+            shapeFilled = shapeFilled,
             modifier = Modifier
                 .fillMaxSize()
                 .onSizeChanged { size ->
@@ -258,14 +272,36 @@ fun CanvasApp(viewModel: CanvasViewModel) {
             )
         }
 
-        // Bottom toolbar column
         Column(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .padding(bottom = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Pen width options
+            if (showColorPicker) {
+                com.sameerasw.canvas.ui.components.ColorPicker(
+                    selectedColor = currentColor,
+                    onColorSelected = { currentColor = it }
+                )
+                Spacer(modifier = Modifier.size(6.dp))
+            }
+
+            if (showPenStyleSelector) {
+                com.sameerasw.canvas.ui.components.PenStyleSelector(
+                    selectedStyle = currentPenStyle,
+                    onStyleSelected = { currentPenStyle = it }
+                )
+                Spacer(modifier = Modifier.size(6.dp))
+            }
+
+            if (showShapeSelector) {
+                com.sameerasw.canvas.ui.components.ShapeSelector(
+                    selectedShape = currentShapeType,
+                    onShapeSelected = { currentShapeType = it }
+                )
+                Spacer(modifier = Modifier.size(6.dp))
+            }
+
             PenWidthOptionsPanel(
                 visible = showPenOptions && currentTool == ToolType.PEN,
                 penWidth = penWidth,
@@ -284,7 +320,20 @@ fun CanvasApp(viewModel: CanvasViewModel) {
                 }
             )
 
-            // Text size options
+            com.sameerasw.canvas.ui.components.ArrowOptionsPanel(
+                visible = showPenOptions && currentTool == ToolType.ARROW,
+                arrowWidth = arrowWidth,
+                onArrowWidthChange = { arrowWidth = it }
+            )
+
+            com.sameerasw.canvas.ui.components.ShapeOptionsPanel(
+                visible = showPenOptions && currentTool == ToolType.SHAPE,
+                shapeWidth = shapeWidth,
+                shapeFilled = shapeFilled,
+                onShapeWidthChange = { shapeWidth = it },
+                onShapeFilledChange = { shapeFilled = it }
+            )
+
             TextSizeOptionsPanel(
                 visible = showPenOptions && currentTool == ToolType.TEXT,
                 textSize = textSize,
@@ -305,47 +354,98 @@ fun CanvasApp(viewModel: CanvasViewModel) {
 
             Spacer(modifier = Modifier.size(6.dp))
 
-            // Main floating toolbar
             ToolbarFloating(
                 expanded = expanded,
                 onExpandToggle = {
                     val new = !expanded
-                    // Update local pinned value in case user changed setting while app running
                     pinTopToolbar = SettingsRepository.getPinTopToolbar()
-
-                    // No temporary hiding: if pinned, top toolbar stays visible always
                     expanded = new
-                    if (!new) showPenOptions = false
+                    if (!new) {
+                        showPenOptions = false
+                        showColorPicker = false
+                        showPenStyleSelector = false
+                        showShapeSelector = false
+                    }
                     HapticUtil.performClick(haptics)
                 },
                 currentTool = currentTool,
                 onHandTool = {
                     currentTool = ToolType.HAND
                     showPenOptions = false
+                    showColorPicker = false
+                    showPenStyleSelector = false
+                    showShapeSelector = false
                     HapticUtil.performToggleOn(haptics)
                 },
                 onPenTool = {
                     if (currentTool == ToolType.PEN) {
                         showPenOptions = !showPenOptions
+                        showColorPicker = !showColorPicker
+                        showPenStyleSelector = !showPenStyleSelector
+                        showShapeSelector = false
                         HapticUtil.performClick(haptics)
                     } else {
                         currentTool = ToolType.PEN
                         showPenOptions = false
+                        showColorPicker = false
+                        showPenStyleSelector = false
+                        showShapeSelector = false
                         HapticUtil.performToggleOn(haptics)
                     }
                 },
                 onEraserTool = {
                     currentTool = ToolType.ERASER
                     showPenOptions = false
+                    showColorPicker = false
+                    showPenStyleSelector = false
+                    showShapeSelector = false
                     HapticUtil.performToggleOn(haptics)
                 },
                 onTextTool = {
                     if (currentTool == ToolType.TEXT) {
                         showPenOptions = !showPenOptions
+                        showColorPicker = false
+                        showPenStyleSelector = false
+                        showShapeSelector = false
                         HapticUtil.performClick(haptics)
                     } else {
                         currentTool = ToolType.TEXT
                         showPenOptions = false
+                        showColorPicker = false
+                        showPenStyleSelector = false
+                        showShapeSelector = false
+                        HapticUtil.performToggleOn(haptics)
+                    }
+                },
+                onArrowTool = {
+                    if (currentTool == ToolType.ARROW) {
+                        showColorPicker = !showColorPicker
+                        showPenOptions = !showPenOptions
+                        showPenStyleSelector = false
+                        showShapeSelector = false
+                        HapticUtil.performClick(haptics)
+                    } else {
+                        currentTool = ToolType.ARROW
+                        showPenOptions = true
+                        showColorPicker = true
+                        showPenStyleSelector = false
+                        showShapeSelector = false
+                        HapticUtil.performToggleOn(haptics)
+                    }
+                },
+                onShapeTool = {
+                    if (currentTool == ToolType.SHAPE) {
+                        showShapeSelector = !showShapeSelector
+                        showColorPicker = !showColorPicker
+                        showPenOptions = !showPenOptions
+                        showPenStyleSelector = false
+                        HapticUtil.performClick(haptics)
+                    } else {
+                        currentTool = ToolType.SHAPE
+                        showPenOptions = true
+                        showColorPicker = true
+                        showPenStyleSelector = false
+                        showShapeSelector = true
                         HapticUtil.performToggleOn(haptics)
                     }
                 }

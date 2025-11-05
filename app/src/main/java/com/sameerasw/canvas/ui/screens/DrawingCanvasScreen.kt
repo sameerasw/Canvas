@@ -19,6 +19,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import com.sameerasw.canvas.model.DrawStroke
 import com.sameerasw.canvas.model.ToolType
 import com.sameerasw.canvas.data.TextItem
+import com.sameerasw.canvas.ui.drawing.StrokeDrawer
 import com.sameerasw.canvas.ui.drawing.StrokeDrawer.drawScribbleStroke
 import com.sameerasw.canvas.ui.drawing.TextDrawer.drawStringWithFont
 import com.sameerasw.canvas.ui.drawing.BackgroundDrawer
@@ -40,6 +41,12 @@ fun DrawingCanvasScreen(
     texts: List<TextItem>,
     penWidth: Float,
     textSize: Float,
+    currentColor: androidx.compose.ui.graphics.Color,
+    currentPenStyle: com.sameerasw.canvas.model.PenStyle,
+    currentShapeType: com.sameerasw.canvas.model.ShapeType,
+    arrowWidth: Float = 5f,
+    shapeWidth: Float = 5f,
+    shapeFilled: Boolean = false,
     modifier: Modifier = Modifier,
     onAddStroke: ((DrawStroke) -> Unit)? = null,
     onRemoveStroke: ((predicate: (DrawStroke) -> Boolean) -> Unit)? = null,
@@ -51,9 +58,9 @@ fun DrawingCanvasScreen(
     val haptics = LocalHapticFeedback.current
     val context = LocalContext.current
     val currentStroke = remember { mutableStateListOf<Offset>() }
-    val strokeColor = MaterialTheme.colorScheme.onBackground
-    val themeColor = strokeColor.toArgb()
+    val themeColor = currentColor.toArgb()
     val eraserRadius = 30f
+    val shapeStartPoint = remember { mutableStateOf<Offset?>(null) }
 
     val scale = remember { mutableStateOf(1f) }
     val offsetX = remember { mutableStateOf(0f) }
@@ -67,19 +74,22 @@ fun DrawingCanvasScreen(
         modifier = modifier
             .pointerInput(currentTool) {
                 detectTransformGestures { centroid, pan, zoom, _ ->
-                    val zoomSensitivity = 1.6f
-                    val effectiveZoom = 1f + (zoom - 1f) * zoomSensitivity
-                    val prevScale = scale.value
-                    val newScale = (scale.value * effectiveZoom).coerceIn(0.25f, 6f)
-                    val worldCx = (centroid.x - offsetX.value) / prevScale
-                    val worldCy = (centroid.y - offsetY.value) / prevScale
-                    scale.value = newScale
-                    offsetX.value = centroid.x - worldCx * newScale
-                    offsetY.value = centroid.y - worldCy * newScale
-                    onUpdateCanvasTransform?.invoke(newScale, offsetX.value, offsetY.value)
+                    // Only allow transform gestures when not actively drawing with other tools
+                    if (currentTool == ToolType.HAND || zoom != 1f) {
+                        val zoomSensitivity = 1.6f
+                        val effectiveZoom = 1f + (zoom - 1f) * zoomSensitivity
+                        val prevScale = scale.value
+                        val newScale = (scale.value * effectiveZoom).coerceIn(0.25f, 6f)
+                        val worldCx = (centroid.x - offsetX.value) / prevScale
+                        val worldCy = (centroid.y - offsetY.value) / prevScale
+                        scale.value = newScale
+                        offsetX.value = centroid.x - worldCx * newScale + pan.x
+                        offsetY.value = centroid.y - worldCy * newScale + pan.y
+                        onUpdateCanvasTransform?.invoke(newScale, offsetX.value, offsetY.value)
+                    }
                 }
             }
-            .pointerInput(currentTool, penWidth, textSize) {
+            .pointerInput(currentTool, penWidth, textSize, currentColor, currentPenStyle, currentShapeType, arrowWidth, shapeWidth, shapeFilled) {
                 detectDragGestures(
                     onDragStart = { offset ->
                         currentStroke.clear()
@@ -138,9 +148,41 @@ fun DrawingCanvasScreen(
                                     val worldThreshold = eraserRadius / scale.value
                                     var removedAny = false
                                     onRemoveStroke?.invoke { stroke ->
-                                        val hit = stroke.points.any { point ->
-                                            val distance = hypot(worldPos.x - point.x, worldPos.y - point.y)
-                                            distance < worldThreshold
+                                        val hit = when {
+                                            // For shapes and arrows, check bounding box and geometry
+                                            stroke.isArrow || stroke.shapeType != null -> {
+                                                if (stroke.points.size >= 2) {
+                                                    val start = stroke.points.first()
+                                                    val end = stroke.points.last()
+                                                    // Check if eraser touches the line/shape
+                                                    val minX = kotlin.math.min(start.x, end.x) - worldThreshold
+                                                    val maxX = kotlin.math.max(start.x, end.x) + worldThreshold
+                                                    val minY = kotlin.math.min(start.y, end.y) - worldThreshold
+                                                    val maxY = kotlin.math.max(start.y, end.y) + worldThreshold
+                                                    worldPos.x in minX..maxX && worldPos.y in minY..maxY
+                                                } else false
+                                            }
+                                            // For regular strokes, check all line segments
+                                            else -> {
+                                                stroke.points.any { point ->
+                                                    val distance = hypot(worldPos.x - point.x, worldPos.y - point.y)
+                                                    distance < worldThreshold
+                                                } || stroke.points.zipWithNext().any { (p1, p2) ->
+                                                    // Check distance to line segment
+                                                    val dx = p2.x - p1.x
+                                                    val dy = p2.y - p1.y
+                                                    val lengthSquared = dx * dx + dy * dy
+                                                    if (lengthSquared == 0f) {
+                                                        hypot(worldPos.x - p1.x, worldPos.y - p1.y) < worldThreshold
+                                                    } else {
+                                                        val t = ((worldPos.x - p1.x) * dx + (worldPos.y - p1.y) * dy) / lengthSquared
+                                                        val clampedT = t.coerceIn(0f, 1f)
+                                                        val closestX = p1.x + clampedT * dx
+                                                        val closestY = p1.y + clampedT * dy
+                                                        hypot(worldPos.x - closestX, worldPos.y - closestY) < worldThreshold
+                                                    }
+                                                }
+                                            }
                                         }
                                         if (hit) removedAny = true
                                         hit
@@ -168,9 +210,46 @@ fun DrawingCanvasScreen(
                         change.consume()
                     },
                     onDragEnd = {
-                        if (currentTool == ToolType.PEN && currentStroke.size >= 2) {
-                            val newStroke = DrawStroke(currentStroke.toList(), strokeColor, width = penWidth)
-                            onAddStroke?.invoke(newStroke)
+                        when (currentTool) {
+                            ToolType.PEN -> {
+                                if (currentStroke.size >= 2) {
+                                    val newStroke = DrawStroke(
+                                        currentStroke.toList(),
+                                        currentColor,
+                                        width = penWidth,
+                                        style = currentPenStyle
+                                    )
+                                    onAddStroke?.invoke(newStroke)
+                                }
+                            }
+                            ToolType.ARROW -> {
+                                if (currentStroke.size >= 2) {
+                                    val start = currentStroke.first()
+                                    val end = currentStroke.last()
+                                    val newStroke = DrawStroke(
+                                        listOf(start, end),
+                                        currentColor,
+                                        width = arrowWidth,
+                                        isArrow = true
+                                    )
+                                    onAddStroke?.invoke(newStroke)
+                                }
+                            }
+                            ToolType.SHAPE -> {
+                                if (currentStroke.size >= 2) {
+                                    val start = currentStroke.first()
+                                    val end = currentStroke.last()
+                                    val newStroke = DrawStroke(
+                                        listOf(start, end),
+                                        currentColor,
+                                        width = shapeWidth,
+                                        shapeType = currentShapeType,
+                                        isFilled = shapeFilled
+                                    )
+                                    onAddStroke?.invoke(newStroke)
+                                }
+                            }
+                            else -> {}
                         }
                         drawingHapticJob.value?.cancel()
                         drawingHapticJob.value = null
@@ -178,6 +257,7 @@ fun DrawingCanvasScreen(
                         lastMoveTime.value = 0L
                         lastMovePos.value = Offset.Zero
                         currentStroke.clear()
+                        shapeStartPoint.value = null
                     },
                     onDragCancel = {
                         drawingHapticJob.value?.cancel()
@@ -186,6 +266,7 @@ fun DrawingCanvasScreen(
                         lastMoveTime.value = 0L
                         lastMovePos.value = Offset.Zero
                         currentStroke.clear()
+                        shapeStartPoint.value = null
                     }
                 )
             }
@@ -210,22 +291,34 @@ fun DrawingCanvasScreen(
                     onTap = { offset ->
                         val world = Offset((offset.x - offsetX.value) / scale.value, (offset.y - offsetY.value) / scale.value)
 
-                        if (currentTool == ToolType.PEN) {
-                            val delta = 0.5f
-                            val p1 = world
-                            val p2 = Offset(world.x + delta, world.y + delta)
-                            onAddStroke?.invoke(DrawStroke(listOf(p1, p2), strokeColor, width = penWidth))
-                            HapticUtil.performClick(haptics)
-                            return@detectTapGestures
-                        }
-
-                        if (currentTool == ToolType.TEXT) {
-                            val hit = texts.find { text ->
-                                val half = text.size
-                                world.x >= text.x - half && world.x <= text.x + half &&
-                                        world.y >= text.y - half && world.y <= text.y + half
+                        when (currentTool) {
+                            ToolType.PEN -> {
+                                val delta = 0.5f
+                                val p1 = world
+                                val p2 = Offset(world.x + delta, world.y + delta)
+                                onAddStroke?.invoke(DrawStroke(listOf(p1, p2), currentColor, width = penWidth, style = currentPenStyle))
+                                HapticUtil.performClick(haptics)
+                                return@detectTapGestures
                             }
-                            // Start moving text
+                            ToolType.TEXT -> {
+                                // Check if tapping on existing text
+                                val hit = texts.find { text ->
+                                    val half = text.size
+                                    world.x >= text.x - half && world.x <= text.x + half &&
+                                            world.y >= text.y - half && world.y <= text.y + half
+                                }
+                                
+                                if (hit != null) {
+                                    // Edit existing text
+                                    onShowTextOptions?.invoke(true, hit.id)
+                                } else {
+                                    // Add new text
+                                    onShowTextDialog?.invoke(true, world)
+                                }
+                                HapticUtil.performClick(haptics)
+                                return@detectTapGestures
+                            }
+                            else -> {}
                         }
                     }
                 )
@@ -237,7 +330,21 @@ fun DrawingCanvasScreen(
 
         strokes.forEach { stroke ->
             val screenPoints = stroke.points.map { world -> Offset(world.x * scale.value + offsetX.value, world.y * scale.value + offsetY.value) }
-            if (screenPoints.size >= 2) drawScribbleStroke(screenPoints, strokeColor, stroke.width * scale.value)
+            when {
+                stroke.isArrow && screenPoints.size >= 2 -> {
+                    with(StrokeDrawer) {
+                        drawArrow(screenPoints.first(), screenPoints.last(), stroke.color, stroke.width * scale.value)
+                    }
+                }
+                stroke.shapeType != null && screenPoints.size >= 2 -> {
+                    with(StrokeDrawer) {
+                        drawShape(screenPoints.first(), screenPoints.last(), stroke.shapeType, stroke.color, stroke.width * scale.value, stroke.isFilled)
+                    }
+                }
+                screenPoints.size >= 2 -> {
+                    drawScribbleStroke(screenPoints, stroke.color, stroke.width * scale.value, stroke.style)
+                }
+            }
         }
 
         texts.forEach { t ->
@@ -247,15 +354,39 @@ fun DrawingCanvasScreen(
             drawStringWithFont(context, t.text, sx, sy, fontSize, themeColor)
         }
 
-        if (currentTool == ToolType.PEN && currentStroke.size >= 2) {
-            val screenPoints = currentStroke.map { world -> Offset(world.x * scale.value + offsetX.value, world.y * scale.value + offsetY.value) }
-            drawScribbleStroke(screenPoints, strokeColor, penWidth * scale.value)
-        }
-
-        if (currentTool == ToolType.ERASER && currentStroke.isNotEmpty()) {
-            val last = currentStroke.last()
-            val center = Offset(last.x * scale.value + offsetX.value, last.y * scale.value + offsetY.value)
-            drawCircle(color = strokeColor.copy(alpha = 0.3f), radius = eraserRadius, center = center)
+        when (currentTool) {
+            ToolType.PEN -> {
+                if (currentStroke.size >= 2) {
+                    val screenPoints = currentStroke.map { world -> Offset(world.x * scale.value + offsetX.value, world.y * scale.value + offsetY.value) }
+                    drawScribbleStroke(screenPoints, currentColor, penWidth * scale.value, currentPenStyle)
+                }
+            }
+            ToolType.ARROW -> {
+                if (currentStroke.size >= 2) {
+                    val start = Offset(currentStroke.first().x * scale.value + offsetX.value, currentStroke.first().y * scale.value + offsetY.value)
+                    val end = Offset(currentStroke.last().x * scale.value + offsetX.value, currentStroke.last().y * scale.value + offsetY.value)
+                    with(StrokeDrawer) {
+                        drawArrow(start, end, currentColor, arrowWidth * scale.value)
+                    }
+                }
+            }
+            ToolType.SHAPE -> {
+                if (currentStroke.size >= 2) {
+                    val start = Offset(currentStroke.first().x * scale.value + offsetX.value, currentStroke.first().y * scale.value + offsetY.value)
+                    val end = Offset(currentStroke.last().x * scale.value + offsetX.value, currentStroke.last().y * scale.value + offsetY.value)
+                    with(StrokeDrawer) {
+                        drawShape(start, end, currentShapeType, currentColor, shapeWidth * scale.value, shapeFilled)
+                    }
+                }
+            }
+            ToolType.ERASER -> {
+                if (currentStroke.isNotEmpty()) {
+                    val last = currentStroke.last()
+                    val center = Offset(last.x * scale.value + offsetX.value, last.y * scale.value + offsetY.value)
+                    drawCircle(color = currentColor.copy(alpha = 0.3f), radius = eraserRadius, center = center)
+                }
+            }
+            else -> {}
         }
     }
 }

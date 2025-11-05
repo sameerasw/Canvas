@@ -41,21 +41,85 @@ object BitmapExportHelper {
 
         strokes.forEach { s ->
             if (s.points.size < 2) return@forEach
-            paint.color = android.graphics.Color.BLACK
+            paint.color = s.color.toArgb()
             paint.strokeWidth = s.width
 
-            val path = AndroidPath()
-            val pts = s.points
-            path.moveTo(pts.first().x, pts.first().y)
-            for (i in 1 until pts.size) {
-                val prev = pts[i - 1]
-                val curr = pts[i]
-                val midX = (prev.x + curr.x) / 2f
-                val midY = (prev.y + curr.y) / 2f
-                path.quadTo(prev.x, prev.y, midX, midY)
+            when {
+                s.isArrow -> {
+                    val start = s.points.first()
+                    val end = s.points.last()
+                    
+                    val angle = kotlin.math.atan2((end.y - start.y).toDouble(), (end.x - start.x).toDouble())
+                    val arrowLength = (s.width * 3.5f).coerceAtLeast(12f)
+                    val arrowAngle = Math.PI / 7
+                    
+                    val arrow1X = (end.x - arrowLength * kotlin.math.cos(angle - arrowAngle)).toFloat()
+                    val arrow1Y = (end.y - arrowLength * kotlin.math.sin(angle - arrowAngle)).toFloat()
+                    val arrow2X = (end.x - arrowLength * kotlin.math.cos(angle + arrowAngle)).toFloat()
+                    val arrow2Y = (end.y - arrowLength * kotlin.math.sin(angle + arrowAngle)).toFloat()
+                    
+                    val arrowBaseX = (end.x - arrowLength * 0.7f * kotlin.math.cos(angle)).toFloat()
+                    val arrowBaseY = (end.y - arrowLength * 0.7f * kotlin.math.sin(angle)).toFloat()
+                    
+                    canvas.drawLine(start.x, start.y, arrowBaseX, arrowBaseY, paint)
+                    
+                    val arrowPath = AndroidPath()
+                    arrowPath.moveTo(end.x, end.y)
+                    arrowPath.lineTo(arrow1X, arrow1Y)
+                    arrowPath.lineTo(arrow2X, arrow2Y)
+                    arrowPath.close()
+                    val prevStyle = paint.style
+                    paint.style = Paint.Style.FILL
+                    canvas.drawPath(arrowPath, paint)
+                    paint.style = prevStyle
+                }
+                s.shapeType != null -> {
+                    val start = s.points.first()
+                    val end = s.points.last()
+                    val path = AndroidPath()
+                    
+                    paint.style = if (s.isFilled) Paint.Style.FILL else Paint.Style.STROKE
+                    
+                    when (s.shapeType) {
+                        com.sameerasw.canvas.model.ShapeType.RECTANGLE -> {
+                            path.addRect(start.x, start.y, end.x, end.y, AndroidPath.Direction.CW)
+                        }
+                        com.sameerasw.canvas.model.ShapeType.CIRCLE -> {
+                            val dx = end.x - start.x
+                            val dy = end.y - start.y
+                            val radius = kotlin.math.sqrt(dx * dx + dy * dy)
+                            path.addCircle(start.x, start.y, radius, AndroidPath.Direction.CW)
+                        }
+                        com.sameerasw.canvas.model.ShapeType.TRIANGLE -> {
+                            path.moveTo(start.x, end.y)
+                            path.lineTo((start.x + end.x) / 2f, start.y)
+                            path.lineTo(end.x, end.y)
+                            path.close()
+                        }
+                        com.sameerasw.canvas.model.ShapeType.LINE -> {
+                            canvas.drawLine(start.x, start.y, end.x, end.y, paint)
+                        }
+                    }
+                    if (s.shapeType != com.sameerasw.canvas.model.ShapeType.LINE) {
+                        canvas.drawPath(path, paint)
+                    }
+                    paint.style = Paint.Style.STROKE
+                }
+                else -> {
+                    val path = AndroidPath()
+                    val pts = s.points
+                    path.moveTo(pts.first().x, pts.first().y)
+                    for (i in 1 until pts.size) {
+                        val prev = pts[i - 1]
+                        val curr = pts[i]
+                        val midX = (prev.x + curr.x) / 2f
+                        val midY = (prev.y + curr.y) / 2f
+                        path.quadTo(prev.x, prev.y, midX, midY)
+                    }
+                    path.lineTo(pts.last().x, pts.last().y)
+                    canvas.drawPath(path, paint)
+                }
             }
-            path.lineTo(pts.last().x, pts.last().y)
-            canvas.drawPath(path, paint)
         }
 
         val textPaint = Paint().apply {
@@ -115,28 +179,98 @@ object BitmapExportHelper {
 
         strokes.forEach { s ->
             if (s.points.size < 2) return@forEach
-            paint.color = android.graphics.Color.BLACK
-            // scale stroke width by transformScale
+            paint.color = s.color.toArgb()
             paint.strokeWidth = s.width * transformScale
 
-            val path = AndroidPath()
-            val pts = s.points
-            // Convert world coordinates -> view pixels: x * scale + offsetX
-            path.moveTo(pts.first().x * transformScale + transformOffsetX, pts.first().y * transformScale + transformOffsetY)
-            for (i in 1 until pts.size) {
-                val prev = pts[i - 1]
-                val curr = pts[i]
-                val prevX = prev.x * transformScale + transformOffsetX
-                val prevY = prev.y * transformScale + transformOffsetY
-                val currX = curr.x * transformScale + transformOffsetX
-                val currY = curr.y * transformScale + transformOffsetY
-                val midX = (prevX + currX) / 2f
-                val midY = (prevY + currY) / 2f
-                path.quadTo(prevX, prevY, midX, midY)
+            when {
+                s.isArrow -> {
+                    val start = s.points.first()
+                    val end = s.points.last()
+                    val startX = start.x * transformScale + transformOffsetX
+                    val startY = start.y * transformScale + transformOffsetY
+                    val endX = end.x * transformScale + transformOffsetX
+                    val endY = end.y * transformScale + transformOffsetY
+                    
+                    val angle = kotlin.math.atan2((endY - startY).toDouble(), (endX - startX).toDouble())
+                    val arrowLength = (s.width * transformScale * 3.5f).coerceAtLeast(12f)
+                    val arrowAngle = Math.PI / 7
+                    
+                    val arrow1X = (endX - arrowLength * kotlin.math.cos(angle - arrowAngle)).toFloat()
+                    val arrow1Y = (endY - arrowLength * kotlin.math.sin(angle - arrowAngle)).toFloat()
+                    val arrow2X = (endX - arrowLength * kotlin.math.cos(angle + arrowAngle)).toFloat()
+                    val arrow2Y = (endY - arrowLength * kotlin.math.sin(angle + arrowAngle)).toFloat()
+                    
+                    val arrowBaseX = (endX - arrowLength * 0.7f * kotlin.math.cos(angle)).toFloat()
+                    val arrowBaseY = (endY - arrowLength * 0.7f * kotlin.math.sin(angle)).toFloat()
+                    
+                    canvas.drawLine(startX, startY, arrowBaseX, arrowBaseY, paint)
+                    
+                    val arrowPath = AndroidPath()
+                    arrowPath.moveTo(endX, endY)
+                    arrowPath.lineTo(arrow1X, arrow1Y)
+                    arrowPath.lineTo(arrow2X, arrow2Y)
+                    arrowPath.close()
+                    val prevStyle = paint.style
+                    paint.style = Paint.Style.FILL
+                    canvas.drawPath(arrowPath, paint)
+                    paint.style = prevStyle
+                }
+                s.shapeType != null -> {
+                    val start = s.points.first()
+                    val end = s.points.last()
+                    val startX = start.x * transformScale + transformOffsetX
+                    val startY = start.y * transformScale + transformOffsetY
+                    val endX = end.x * transformScale + transformOffsetX
+                    val endY = end.y * transformScale + transformOffsetY
+                    val path = AndroidPath()
+                    
+                    paint.style = if (s.isFilled) Paint.Style.FILL else Paint.Style.STROKE
+                    
+                    when (s.shapeType) {
+                        com.sameerasw.canvas.model.ShapeType.RECTANGLE -> {
+                            path.addRect(startX, startY, endX, endY, AndroidPath.Direction.CW)
+                        }
+                        com.sameerasw.canvas.model.ShapeType.CIRCLE -> {
+                            val dx = endX - startX
+                            val dy = endY - startY
+                            val radius = kotlin.math.sqrt(dx * dx + dy * dy)
+                            path.addCircle(startX, startY, radius, AndroidPath.Direction.CW)
+                        }
+                        com.sameerasw.canvas.model.ShapeType.TRIANGLE -> {
+                            path.moveTo(startX, endY)
+                            path.lineTo((startX + endX) / 2f, startY)
+                            path.lineTo(endX, endY)
+                            path.close()
+                        }
+                        com.sameerasw.canvas.model.ShapeType.LINE -> {
+                            canvas.drawLine(startX, startY, endX, endY, paint)
+                        }
+                    }
+                    if (s.shapeType != com.sameerasw.canvas.model.ShapeType.LINE) {
+                        canvas.drawPath(path, paint)
+                    }
+                    paint.style = Paint.Style.STROKE
+                }
+                else -> {
+                    val path = AndroidPath()
+                    val pts = s.points
+                    path.moveTo(pts.first().x * transformScale + transformOffsetX, pts.first().y * transformScale + transformOffsetY)
+                    for (i in 1 until pts.size) {
+                        val prev = pts[i - 1]
+                        val curr = pts[i]
+                        val prevX = prev.x * transformScale + transformOffsetX
+                        val prevY = prev.y * transformScale + transformOffsetY
+                        val currX = curr.x * transformScale + transformOffsetX
+                        val currY = curr.y * transformScale + transformOffsetY
+                        val midX = (prevX + currX) / 2f
+                        val midY = (prevY + currY) / 2f
+                        path.quadTo(prevX, prevY, midX, midY)
+                    }
+                    val last = pts.last()
+                    path.lineTo(last.x * transformScale + transformOffsetX, last.y * transformScale + transformOffsetY)
+                    canvas.drawPath(path, paint)
+                }
             }
-            val last = pts.last()
-            path.lineTo(last.x * transformScale + transformOffsetX, last.y * transformScale + transformOffsetY)
-            canvas.drawPath(path, paint)
         }
 
         val textPaint = Paint().apply {
