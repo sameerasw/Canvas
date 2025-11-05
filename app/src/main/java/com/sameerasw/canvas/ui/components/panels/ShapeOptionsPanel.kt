@@ -1,10 +1,11 @@
-package com.sameerasw.canvas.ui.components
+package com.sameerasw.canvas.ui.components.panels
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -28,7 +29,7 @@ fun ShapeOptionsPanel(
         Surface(
             modifier = Modifier,
             shape = RoundedCornerShape(20.dp),
-            color = MaterialTheme.colorScheme.surface
+            color = MaterialTheme.colorScheme.surfaceContainer
         ) {
             Column(
                 modifier = Modifier
@@ -56,7 +57,7 @@ fun ShapeOptionsPanel(
                     contentAlignment = Alignment.Center
                 ) {
                     Surface(
-                        shape = androidx.compose.foundation.shape.CircleShape,
+                        shape = CircleShape,
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(circleSize)
                     ) {}

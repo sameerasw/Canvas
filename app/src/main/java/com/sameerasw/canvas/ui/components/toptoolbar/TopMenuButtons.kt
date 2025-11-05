@@ -1,4 +1,4 @@
-package com.sameerasw.canvas.ui.components
+package com.sameerasw.canvas.ui.components.toptoolbar
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandHorizontally

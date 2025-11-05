@@ -1,4 +1,4 @@
-package com.sameerasw.canvas.ui.components
+package com.sameerasw.canvas.ui.components.dialogs
 
 import android.content.Intent
 import android.widget.Toast

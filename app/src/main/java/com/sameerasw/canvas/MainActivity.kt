@@ -1,6 +1,7 @@
 package com.sameerasw.canvas
 
 import android.content.Intent
+import android.graphics.Bitmap
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -32,14 +33,15 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import com.google.gson.Gson
 import com.sameerasw.canvas.model.ToolType
-import com.sameerasw.canvas.ui.components.AboutDialog
-import com.sameerasw.canvas.ui.components.PenWidthOptionsPanel
-import com.sameerasw.canvas.ui.components.TextSizeOptionsPanel
-import com.sameerasw.canvas.ui.components.TextInputDialog
-import com.sameerasw.canvas.ui.components.TextOptionsDialog
-import com.sameerasw.canvas.ui.components.ToolbarFloating
-import com.sameerasw.canvas.ui.components.TopMenuButtons
+import com.sameerasw.canvas.ui.components.dialogs.AboutDialog
+import com.sameerasw.canvas.ui.components.panels.PenWidthOptionsPanel
+import com.sameerasw.canvas.ui.components.panels.TextSizeOptionsPanel
+import com.sameerasw.canvas.ui.components.dialogs.TextInputDialog
+import com.sameerasw.canvas.ui.components.dialogs.TextOptionsDialog
+import com.sameerasw.canvas.ui.components.toptoolbar.ToolbarFloating
+import com.sameerasw.canvas.ui.components.toptoolbar.TopMenuButtons
 import com.sameerasw.canvas.ui.components.TopOverlayToolbar
 import com.sameerasw.canvas.ui.drawing.BitmapExportHelper
 import com.sameerasw.canvas.ui.drawing.BitmapStorageHelper
@@ -47,6 +49,8 @@ import com.sameerasw.canvas.ui.screens.DrawingCanvasScreen
 import com.sameerasw.canvas.ui.theme.CanvasTheme
 import com.sameerasw.canvas.utils.HapticUtil
 import com.sameerasw.canvas.data.TextItem
+import com.sameerasw.canvas.ui.components.panels.ArrowOptionsPanel
+import com.sameerasw.canvas.ui.components.panels.ShapeOptionsPanel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -197,10 +201,10 @@ fun CanvasApp(viewModel: CanvasViewModel) {
                             val filename = "canvas_full_$ts.png"
                             val bmp = BitmapExportHelper.createBitmapFromData(context, strokes, texts, outputWidth = canvasViewSize.width.coerceAtLeast(1), outputHeight = canvasViewSize.height.coerceAtLeast(1))
                             if (bmp != null) {
-                                val uri = BitmapStorageHelper.saveBitmapToCacheAndGetUri(context, bmp, filename, android.graphics.Bitmap.CompressFormat.PNG)
+                                val uri = BitmapStorageHelper.saveBitmapToCacheAndGetUri(context, bmp, filename, Bitmap.CompressFormat.PNG)
                                 if (uri != null) {
                                     // Serialize strokes and texts to JSON for passing to CropActivity
-                                    val gson = com.google.gson.Gson()
+                                    val gson = Gson()
                                     val strokesJson = gson.toJson(strokes)
                                     val textsJson = gson.toJson(texts)
 
@@ -320,13 +324,13 @@ fun CanvasApp(viewModel: CanvasViewModel) {
                 }
             )
 
-            com.sameerasw.canvas.ui.components.ArrowOptionsPanel(
+            ArrowOptionsPanel(
                 visible = showPenOptions && currentTool == ToolType.ARROW,
                 arrowWidth = arrowWidth,
                 onArrowWidthChange = { arrowWidth = it }
             )
 
-            com.sameerasw.canvas.ui.components.ShapeOptionsPanel(
+            ShapeOptionsPanel(
                 visible = showPenOptions && currentTool == ToolType.SHAPE,
                 shapeWidth = shapeWidth,
                 shapeFilled = shapeFilled,

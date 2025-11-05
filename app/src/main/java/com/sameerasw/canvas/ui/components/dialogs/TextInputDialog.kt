@@ -1,4 +1,4 @@
-package com.sameerasw.canvas.ui.components
+package com.sameerasw.canvas.ui.components.dialogs
 
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.OutlinedTextField

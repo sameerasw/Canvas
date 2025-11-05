@@ -1,4 +1,4 @@
-package com.sameerasw.canvas.ui.components
+package com.sameerasw.canvas.ui.components.panels
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.slideInVertically
@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
@@ -32,7 +33,7 @@ fun PenWidthOptionsPanel(
         Surface(
             modifier = Modifier,
             shape = RoundedCornerShape(20.dp),
-            color = MaterialTheme.colorScheme.surface
+            color = MaterialTheme.colorScheme.surfaceContainer
         ) {
             Column(
                 modifier = Modifier
@@ -46,7 +47,7 @@ fun PenWidthOptionsPanel(
                     contentAlignment = Alignment.Center
                 ) {
                     Surface(
-                        shape = androidx.compose.foundation.shape.CircleShape,
+                        shape = CircleShape,
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(circleSize)
                     ) {}

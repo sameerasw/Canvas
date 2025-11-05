@@ -1,4 +1,4 @@
-package com.sameerasw.canvas.ui.components
+package com.sameerasw.canvas.ui.components.crop
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
