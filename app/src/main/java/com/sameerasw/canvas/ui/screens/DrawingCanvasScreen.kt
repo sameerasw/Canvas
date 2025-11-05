@@ -41,8 +41,6 @@ fun DrawingCanvasScreen(
     modifier: Modifier = Modifier,
     onAddStroke: ((DrawStroke) -> Unit)? = null,
     onRemoveStroke: ((predicate: (DrawStroke) -> Boolean) -> Unit)? = null,
-    onAddText: ((TextItem) -> Unit)? = null,
-    onUpdateText: ((TextItem) -> Unit)? = null,
     onRemoveText: ((Long) -> Unit)? = null,
     onShowTextDialog: ((Boolean, Offset) -> Unit)? = null,
     onShowTextOptions: ((Boolean, Long?) -> Unit)? = null,

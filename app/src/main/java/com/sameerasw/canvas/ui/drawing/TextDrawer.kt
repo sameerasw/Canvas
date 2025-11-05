@@ -2,12 +2,9 @@ package com.sameerasw.canvas.ui.drawing
 
 import android.content.Context
 import android.graphics.Paint
-import android.graphics.Typeface
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
-import androidx.compose.ui.graphics.toArgb
 import androidx.core.content.res.ResourcesCompat
 import com.sameerasw.canvas.R
 

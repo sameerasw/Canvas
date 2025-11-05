@@ -6,15 +6,15 @@ import android.graphics.Canvas as AndroidCanvas
 import android.graphics.Paint
 import android.graphics.Path as AndroidPath
 import android.graphics.Typeface
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.geometry.Offset
 import androidx.core.content.res.ResourcesCompat
 import com.sameerasw.canvas.R
 import com.sameerasw.canvas.model.DrawStroke
 import com.sameerasw.canvas.data.TextItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import androidx.core.graphics.createBitmap
+import androidx.core.graphics.scale
 
 object BitmapExportHelper {
     suspend fun createBitmapFromData(
@@ -26,7 +26,7 @@ object BitmapExportHelper {
     ): Bitmap? = withContext(Dispatchers.Default) {
         if (strokes.isEmpty() && texts.isEmpty()) return@withContext null
 
-        val bmp = Bitmap.createBitmap(outputWidth, outputHeight, Bitmap.Config.ARGB_8888)
+        val bmp = createBitmap(outputWidth, outputHeight)
         val canvas = AndroidCanvas(bmp)
         canvas.drawColor(android.graphics.Color.WHITE)
 
@@ -99,7 +99,7 @@ object BitmapExportHelper {
         if (strokes.isEmpty() && texts.isEmpty()) return@withContext null
 
         // Render full view-sized bitmap that matches the on-screen canvas rendering
-        val full = Bitmap.createBitmap(viewWidth.coerceAtLeast(1), viewHeight.coerceAtLeast(1), Bitmap.Config.ARGB_8888)
+        val full = createBitmap(viewWidth.coerceAtLeast(1), viewHeight.coerceAtLeast(1))
         val canvas = AndroidCanvas(full)
         canvas.drawColor(android.graphics.Color.WHITE)
 
@@ -165,7 +165,7 @@ object BitmapExportHelper {
         val cropped = Bitmap.createBitmap(full, left, top, w, h)
 
         // Scale to desired output size
-        val out = Bitmap.createScaledBitmap(cropped, outputWidth.coerceAtLeast(1), outputHeight.coerceAtLeast(1), true)
+        val out = cropped.scale(outputWidth.coerceAtLeast(1), outputHeight.coerceAtLeast(1))
 
         // Recycle intermediates to save memory
         if (cropped != out) cropped.recycle()

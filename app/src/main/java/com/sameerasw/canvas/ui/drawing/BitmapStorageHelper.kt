@@ -25,10 +25,8 @@ object BitmapStorageHelper {
         val values = ContentValues().apply {
             put(MediaStore.MediaColumns.DISPLAY_NAME, filename)
             put(MediaStore.MediaColumns.MIME_TYPE, mime)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                put(MediaStore.MediaColumns.IS_PENDING, 1)
-                put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
-            }
+            put(MediaStore.MediaColumns.IS_PENDING, 1)
+            put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
         }
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {

@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -21,7 +20,6 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Outline
 
 @Composable
 fun CropSelector(
@@ -29,7 +27,7 @@ fun CropSelector(
     onCancel: () -> Unit,
     onConfirm: (Rect) -> Unit
 ) {
-    // Simple implementation: a draggable rectangle. Sizes are interpreted in pixels.
+    // a draggable rectangle. Sizes are interpreted in pixels.
     val left = remember { mutableStateOf(initialRect.left) }
     val top = remember { mutableStateOf(initialRect.top) }
     val right = remember { mutableStateOf(initialRect.right) }
@@ -53,7 +51,7 @@ fun CropSelector(
                 .background(Color(0x55FFFFFF), RoundedCornerShape(8.dp))
         ) {}
 
-        // Confirm/Cancel buttons anchored at bottom center
+        // Confirm/Cancel
         Box(modifier = Modifier
             .fillMaxSize()
             .padding(16.dp)) {

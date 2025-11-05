@@ -135,8 +135,6 @@ fun CanvasApp(viewModel: CanvasViewModel) {
                 },
             onAddStroke = { viewModel.addStroke(it) },
             onRemoveStroke = { predicate -> viewModel.removeStroke(predicate) },
-            onAddText = { viewModel.addText(it) },
-            onUpdateText = { viewModel.updateText(it) },
             onRemoveText = { viewModel.removeText(it) },
             onShowTextDialog = { show, pos ->
                 if (show) {
