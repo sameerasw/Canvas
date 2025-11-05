@@ -55,8 +55,7 @@ fun DrawingCanvasScreen(
     val haptics = LocalHapticFeedback.current
     val context = LocalContext.current
     val currentStroke = remember { mutableStateListOf<Offset>() }
-    val strokeColor = currentColor
-    val themeColor = strokeColor.toArgb()
+    val themeColor = currentColor.toArgb()
     val eraserRadius = 30f
     val shapeStartPoint = remember { mutableStateOf<Offset?>(null) }
 
@@ -72,19 +71,22 @@ fun DrawingCanvasScreen(
         modifier = modifier
             .pointerInput(currentTool) {
                 detectTransformGestures { centroid, pan, zoom, _ ->
-                    val zoomSensitivity = 1.6f
-                    val effectiveZoom = 1f + (zoom - 1f) * zoomSensitivity
-                    val prevScale = scale.value
-                    val newScale = (scale.value * effectiveZoom).coerceIn(0.25f, 6f)
-                    val worldCx = (centroid.x - offsetX.value) / prevScale
-                    val worldCy = (centroid.y - offsetY.value) / prevScale
-                    scale.value = newScale
-                    offsetX.value = centroid.x - worldCx * newScale
-                    offsetY.value = centroid.y - worldCy * newScale
-                    onUpdateCanvasTransform?.invoke(newScale, offsetX.value, offsetY.value)
+                    // Only allow transform gestures when not actively drawing with other tools
+                    if (currentTool == ToolType.HAND || zoom != 1f) {
+                        val zoomSensitivity = 1.6f
+                        val effectiveZoom = 1f + (zoom - 1f) * zoomSensitivity
+                        val prevScale = scale.value
+                        val newScale = (scale.value * effectiveZoom).coerceIn(0.25f, 6f)
+                        val worldCx = (centroid.x - offsetX.value) / prevScale
+                        val worldCy = (centroid.y - offsetY.value) / prevScale
+                        scale.value = newScale
+                        offsetX.value = centroid.x - worldCx * newScale + pan.x
+                        offsetY.value = centroid.y - worldCy * newScale + pan.y
+                        onUpdateCanvasTransform?.invoke(newScale, offsetX.value, offsetY.value)
+                    }
                 }
             }
-            .pointerInput(currentTool, penWidth, textSize) {
+            .pointerInput(currentTool, penWidth, textSize, currentColor, currentPenStyle, currentShapeType) {
                 detectDragGestures(
                     onDragStart = { offset ->
                         currentStroke.clear()
@@ -178,7 +180,7 @@ fun DrawingCanvasScreen(
                                 if (currentStroke.size >= 2) {
                                     val newStroke = DrawStroke(
                                         currentStroke.toList(),
-                                        strokeColor,
+                                        currentColor,
                                         width = penWidth,
                                         style = currentPenStyle
                                     )
@@ -191,7 +193,7 @@ fun DrawingCanvasScreen(
                                     val end = currentStroke.last()
                                     val newStroke = DrawStroke(
                                         listOf(start, end),
-                                        strokeColor,
+                                        currentColor,
                                         width = penWidth,
                                         isArrow = true
                                     )
@@ -204,7 +206,7 @@ fun DrawingCanvasScreen(
                                     val end = currentStroke.last()
                                     val newStroke = DrawStroke(
                                         listOf(start, end),
-                                        strokeColor,
+                                        currentColor,
                                         width = penWidth,
                                         shapeType = currentShapeType
                                     )
@@ -258,7 +260,7 @@ fun DrawingCanvasScreen(
                                 val delta = 0.5f
                                 val p1 = world
                                 val p2 = Offset(world.x + delta, world.y + delta)
-                                onAddStroke?.invoke(DrawStroke(listOf(p1, p2), strokeColor, width = penWidth, style = currentPenStyle))
+                                onAddStroke?.invoke(DrawStroke(listOf(p1, p2), currentColor, width = penWidth, style = currentPenStyle))
                                 HapticUtil.performClick(haptics)
                                 return@detectTapGestures
                             }
@@ -285,10 +287,14 @@ fun DrawingCanvasScreen(
             val screenPoints = stroke.points.map { world -> Offset(world.x * scale.value + offsetX.value, world.y * scale.value + offsetY.value) }
             when {
                 stroke.isArrow && screenPoints.size >= 2 -> {
-                    StrokeDrawer.drawArrow(screenPoints.first(), screenPoints.last(), stroke.color, stroke.width * scale.value)
+                    with(StrokeDrawer) {
+                        drawArrow(screenPoints.first(), screenPoints.last(), stroke.color, stroke.width * scale.value)
+                    }
                 }
                 stroke.shapeType != null && screenPoints.size >= 2 -> {
-                    StrokeDrawer.drawShape(screenPoints.first(), screenPoints.last(), stroke.shapeType, stroke.color, stroke.width * scale.value)
+                    with(StrokeDrawer) {
+                        drawShape(screenPoints.first(), screenPoints.last(), stroke.shapeType, stroke.color, stroke.width * scale.value)
+                    }
                 }
                 screenPoints.size >= 2 -> {
                     drawScribbleStroke(screenPoints, stroke.color, stroke.width * scale.value, stroke.style)
@@ -307,28 +313,32 @@ fun DrawingCanvasScreen(
             ToolType.PEN -> {
                 if (currentStroke.size >= 2) {
                     val screenPoints = currentStroke.map { world -> Offset(world.x * scale.value + offsetX.value, world.y * scale.value + offsetY.value) }
-                    drawScribbleStroke(screenPoints, strokeColor, penWidth * scale.value, currentPenStyle)
+                    drawScribbleStroke(screenPoints, currentColor, penWidth * scale.value, currentPenStyle)
                 }
             }
             ToolType.ARROW -> {
                 if (currentStroke.size >= 2) {
                     val start = Offset(currentStroke.first().x * scale.value + offsetX.value, currentStroke.first().y * scale.value + offsetY.value)
                     val end = Offset(currentStroke.last().x * scale.value + offsetX.value, currentStroke.last().y * scale.value + offsetY.value)
-                    StrokeDrawer.drawArrow(start, end, strokeColor, penWidth * scale.value)
+                    with(StrokeDrawer) {
+                        drawArrow(start, end, currentColor, penWidth * scale.value)
+                    }
                 }
             }
             ToolType.SHAPE -> {
                 if (currentStroke.size >= 2) {
                     val start = Offset(currentStroke.first().x * scale.value + offsetX.value, currentStroke.first().y * scale.value + offsetY.value)
                     val end = Offset(currentStroke.last().x * scale.value + offsetX.value, currentStroke.last().y * scale.value + offsetY.value)
-                    StrokeDrawer.drawShape(start, end, currentShapeType, strokeColor, penWidth * scale.value)
+                    with(StrokeDrawer) {
+                        drawShape(start, end, currentShapeType, currentColor, penWidth * scale.value)
+                    }
                 }
             }
             ToolType.ERASER -> {
                 if (currentStroke.isNotEmpty()) {
                     val last = currentStroke.last()
                     val center = Offset(last.x * scale.value + offsetX.value, last.y * scale.value + offsetY.value)
-                    drawCircle(color = strokeColor.copy(alpha = 0.3f), radius = eraserRadius, center = center)
+                    drawCircle(color = currentColor.copy(alpha = 0.3f), radius = eraserRadius, center = center)
                 }
             }
             else -> {}

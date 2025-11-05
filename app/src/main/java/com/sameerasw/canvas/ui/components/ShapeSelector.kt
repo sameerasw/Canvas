@@ -32,7 +32,7 @@ fun ShapeSelector(
             )
         ) {
             Icon(
-                painter = painterResource(id = R.drawable.rounded_back_hand_24),
+                painter = painterResource(id = R.drawable.rounded_rectangle_24),
                 contentDescription = "Rectangle",
                 tint = if (selectedShape == ShapeType.RECTANGLE) MaterialTheme.colorScheme.primary
                 else MaterialTheme.colorScheme.onSurfaceVariant
@@ -48,7 +48,7 @@ fun ShapeSelector(
             )
         ) {
             Icon(
-                painter = painterResource(id = R.drawable.rounded_back_hand_24),
+                painter = painterResource(id = R.drawable.rounded_circle_24),
                 contentDescription = "Circle",
                 tint = if (selectedShape == ShapeType.CIRCLE) MaterialTheme.colorScheme.primary
                 else MaterialTheme.colorScheme.onSurfaceVariant
@@ -64,7 +64,7 @@ fun ShapeSelector(
             )
         ) {
             Icon(
-                painter = painterResource(id = R.drawable.rounded_back_hand_24),
+                painter = painterResource(id = R.drawable.rounded_triangle_24),
                 contentDescription = "Triangle",
                 tint = if (selectedShape == ShapeType.TRIANGLE) MaterialTheme.colorScheme.primary
                 else MaterialTheme.colorScheme.onSurfaceVariant
@@ -80,7 +80,7 @@ fun ShapeSelector(
             )
         ) {
             Icon(
-                painter = painterResource(id = R.drawable.rounded_back_hand_24),
+                painter = painterResource(id = R.drawable.rounded_line_24),
                 contentDescription = "Line",
                 tint = if (selectedShape == ShapeType.LINE) MaterialTheme.colorScheme.primary
                 else MaterialTheme.colorScheme.onSurfaceVariant

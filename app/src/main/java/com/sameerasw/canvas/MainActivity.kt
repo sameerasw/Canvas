@@ -404,8 +404,8 @@ fun CanvasApp(viewModel: CanvasViewModel) {
                         HapticUtil.performClick(haptics)
                     } else {
                         currentTool = ToolType.ARROW
-                        showPenOptions = false
-                        showColorPicker = false
+                        showPenOptions = true
+                        showColorPicker = true
                         showPenStyleSelector = false
                         showShapeSelector = false
                         HapticUtil.performToggleOn(haptics)
@@ -420,10 +420,10 @@ fun CanvasApp(viewModel: CanvasViewModel) {
                         HapticUtil.performClick(haptics)
                     } else {
                         currentTool = ToolType.SHAPE
-                        showPenOptions = false
-                        showColorPicker = false
+                        showPenOptions = true
+                        showColorPicker = true
                         showPenStyleSelector = false
-                        showShapeSelector = false
+                        showShapeSelector = true
                         HapticUtil.performToggleOn(haptics)
                     }
                 }
