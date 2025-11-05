@@ -28,6 +28,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import com.sameerasw.canvas.R
+import com.sameerasw.canvas.ui.components.ContributorsCarousel
 
 @Composable
 fun AboutDialog(
@@ -52,7 +53,7 @@ fun AboutDialog(
         onDismissRequest = onDismissRequest,
         title = {
             Text(
-                "About $appName",
+                "$appName v$versionName",
                 style = MaterialTheme.typography.headlineSmall
             )
         },
@@ -73,7 +74,7 @@ fun AboutDialog(
                     painter = painterResource(id = R.drawable.avatar),
                     contentDescription = "Developer Avatar",
                     modifier = Modifier
-                        .size(100.dp)
+                        .size(150.dp)
                         .clip(CircleShape)
                         .pointerInput(Unit) {
                             detectTapGestures(
@@ -100,18 +101,15 @@ fun AboutDialog(
                 )
 
                 Text(
-                    "With ❤\uFE0F",
+                    "With ❤\uFE0F from \uD83C\uDDF1\uD83C\uDDF0",
                     style = MaterialTheme.typography.bodySmall,
                     textAlign = TextAlign.Center
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                Text(
-                    "Version $versionName",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                ContributorsCarousel()
+
             }
         },
         dismissButton = {
