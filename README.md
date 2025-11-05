@@ -23,17 +23,17 @@
 - [x] Text tools
 - [x] Canvas backgrounds
 - [x] Minimal UI
+- [x] colors
+- [x] shape tool
+- [x] editable text
+- [x] Improve zoom
+- [x] pen strokes
+- [x] arrow tools
 
-- [ ] colors
-- [ ] shape tool
-- [ ] editable text
 - [ ] a macOS app of course
 - [ ] nfc share
 - [ ] background effects in export
 - [ ] fonts
-- [ ] Improve zoom
-- [ ] pen strokes
-- [ ] arrow tools
 
 ---
 
