@@ -93,6 +93,8 @@ fun CanvasApp(viewModel: CanvasViewModel) {
 
     var expanded by remember { mutableStateOf(false) }
     var topMenuOpen by remember { mutableStateOf(false) }
+    // Pin top toolbar setting
+    var pinTopToolbar by remember { mutableStateOf(SettingsRepository.getPinTopToolbar()) }
     var penWidth by remember { mutableStateOf(2.5f) }
     var prevPenValue by remember { mutableStateOf(penWidth) }
     var smoothedStrength by remember { mutableStateOf((penWidth - 1f) / (48f - 1f)) }
@@ -155,8 +157,10 @@ fun CanvasApp(viewModel: CanvasViewModel) {
         )
 
         // Top overlay toolbar
+        // If pinned, always visible; otherwise visible when expanded
+        val topVisible = pinTopToolbar || expanded
         TopOverlayToolbar(
-            visible = expanded,
+            visible = topVisible,
             menuOpen = topMenuOpen,
             onMenuToggle = { topMenuOpen = !topMenuOpen },
             onUndo = {
@@ -316,6 +320,10 @@ fun CanvasApp(viewModel: CanvasViewModel) {
                 expanded = expanded,
                 onExpandToggle = {
                     val new = !expanded
+                    // Update local pinned value in case user changed setting while app running
+                    pinTopToolbar = SettingsRepository.getPinTopToolbar()
+
+                    // No temporary hiding: if pinned, top toolbar stays visible always
                     expanded = new
                     if (!new) showPenOptions = false
                     HapticUtil.performClick(haptics)

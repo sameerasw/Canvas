@@ -15,6 +15,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -26,6 +27,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.sameerasw.canvas.ui.theme.CanvasTheme
 
@@ -47,6 +49,7 @@ class SettingsActivity : ComponentActivity() {
 @Composable
 fun SettingsScreen() {
     var level by remember { mutableStateOf(SettingsRepository.getHapticsLevel().value.toFloat()) }
+    var pinTop by remember { mutableStateOf(SettingsRepository.getPinTopToolbar()) }
     val context = LocalContext.current
 
     Column(
@@ -71,6 +74,25 @@ fun SettingsScreen() {
         )
 
         Column {
+            // Pin top toolbar toggle
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Pin top toolbar",
+                    style = MaterialTheme.typography.titleMedium
+                )
+
+                Switch(checked = pinTop, onCheckedChange = { new ->
+                    pinTop = new
+                    SettingsRepository.setPinTopToolbar(new)
+                })
+            }
+
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
