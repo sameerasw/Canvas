@@ -8,6 +8,7 @@ import com.google.gson.reflect.TypeToken
 import com.sameerasw.canvas.data.CanvasRepository
 import com.sameerasw.canvas.data.TextItem
 import com.sameerasw.canvas.model.DrawStroke
+import com.sameerasw.canvas.util.GsonProvider
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -20,7 +21,7 @@ data class CanvasModel(
 
 class CanvasViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = CanvasRepository(application)
-    private val gson = Gson()
+    private val gson = GsonProvider.create()
 
     private val _strokes = MutableStateFlow<List<DrawStroke>>(emptyList())
     val strokes = _strokes.asStateFlow()

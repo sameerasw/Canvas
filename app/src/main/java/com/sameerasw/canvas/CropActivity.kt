@@ -107,7 +107,7 @@ class CropActivity : ComponentActivity() {
                     // Deserialize strokes and texts on first composition
                     LaunchedEffect(Unit) {
                         try {
-                            val gson = com.google.gson.Gson()
+                            val gson = com.sameerasw.canvas.util.GsonProvider.create()
                             val strokeType = object :
                                 com.google.gson.reflect.TypeToken<List<DrawStroke>>() {}.type
                             val textType =
@@ -218,11 +218,39 @@ class CropActivity : ComponentActivity() {
                                                 worldPoint.y * scale + offsetY
                                             )
                                         }
-                                        drawScribbleStroke(
-                                            screenPoints,
-                                            stroke.color,
-                                            stroke.width * scale
-                                        )
+                                        
+                                        when {
+                                            stroke.isArrow && screenPoints.size >= 2 -> {
+                                                with(com.sameerasw.canvas.ui.drawing.StrokeDrawer) {
+                                                    drawArrow(
+                                                        screenPoints.first(),
+                                                        screenPoints.last(),
+                                                        stroke.color,
+                                                        stroke.width * scale
+                                                    )
+                                                }
+                                            }
+                                            stroke.shapeType != null && screenPoints.size >= 2 -> {
+                                                with(com.sameerasw.canvas.ui.drawing.StrokeDrawer) {
+                                                    drawShape(
+                                                        screenPoints.first(),
+                                                        screenPoints.last(),
+                                                        stroke.shapeType,
+                                                        stroke.color,
+                                                        stroke.width * scale,
+                                                        stroke.isFilled
+                                                    )
+                                                }
+                                            }
+                                            else -> {
+                                                drawScribbleStroke(
+                                                    screenPoints,
+                                                    stroke.color,
+                                                    stroke.width * scale,
+                                                    stroke.style
+                                                )
+                                            }
+                                        }
                                     }
                                 }
 

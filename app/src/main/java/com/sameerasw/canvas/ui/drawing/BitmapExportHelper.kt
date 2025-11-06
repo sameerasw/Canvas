@@ -46,32 +46,42 @@ object BitmapExportHelper {
 
             when {
                 s.isArrow -> {
+                    android.util.Log.d("BitmapExport", "Drawing arrow: points=${s.points.size}, color=${s.color}, width=${s.width}")
                     val start = s.points.first()
                     val end = s.points.last()
                     
+                    // Calculate arrow head parameters
                     val angle = kotlin.math.atan2((end.y - start.y).toDouble(), (end.x - start.x).toDouble())
-                    val arrowLength = (s.width * 3.5f).coerceAtLeast(12f)
-                    val arrowAngle = Math.PI / 7
+                    val arrowLength = (s.width * 5f).coerceAtLeast(20f)  // Made larger for testing
+                    val arrowAngle = Math.PI / 6  // Wider angle
                     
+                    // Calculate arrow base (where line should stop)
+                    val arrowBaseX = (end.x - arrowLength * 0.7f * kotlin.math.cos(angle)).toFloat()
+                    val arrowBaseY = (end.y - arrowLength * 0.7f * kotlin.math.sin(angle)).toFloat()
+                    
+                    // Draw the main line (stopping at arrow base)
+                    canvas.drawLine(start.x, start.y, arrowBaseX, arrowBaseY, paint)
+                    
+                    // Calculate arrow head points
                     val arrow1X = (end.x - arrowLength * kotlin.math.cos(angle - arrowAngle)).toFloat()
                     val arrow1Y = (end.y - arrowLength * kotlin.math.sin(angle - arrowAngle)).toFloat()
                     val arrow2X = (end.x - arrowLength * kotlin.math.cos(angle + arrowAngle)).toFloat()
                     val arrow2Y = (end.y - arrowLength * kotlin.math.sin(angle + arrowAngle)).toFloat()
                     
-                    val arrowBaseX = (end.x - arrowLength * 0.7f * kotlin.math.cos(angle)).toFloat()
-                    val arrowBaseY = (end.y - arrowLength * 0.7f * kotlin.math.sin(angle)).toFloat()
+                    android.util.Log.d("BitmapExport", "Arrow head: tip=($end.x,$end.y), p1=($arrow1X,$arrow1Y), p2=($arrow2X,$arrow2Y)")
                     
-                    canvas.drawLine(start.x, start.y, arrowBaseX, arrowBaseY, paint)
-                    
+                    // Draw filled arrow head
+                    val arrowPaint = Paint().apply {
+                        color = s.color.toArgb()
+                        style = Paint.Style.FILL
+                        isAntiAlias = true
+                    }
                     val arrowPath = AndroidPath()
                     arrowPath.moveTo(end.x, end.y)
                     arrowPath.lineTo(arrow1X, arrow1Y)
                     arrowPath.lineTo(arrow2X, arrow2Y)
                     arrowPath.close()
-                    val prevStyle = paint.style
-                    paint.style = Paint.Style.FILL
-                    canvas.drawPath(arrowPath, paint)
-                    paint.style = prevStyle
+                    canvas.drawPath(arrowPath, arrowPaint)
                 }
                 s.shapeType != null -> {
                     val start = s.points.first()
@@ -184,6 +194,7 @@ object BitmapExportHelper {
 
             when {
                 s.isArrow -> {
+                    android.util.Log.d("BitmapExport", "Drawing arrow (viewport): points=${s.points.size}, color=${s.color}, width=${s.width}")
                     val start = s.points.first()
                     val end = s.points.last()
                     val startX = start.x * transformScale + transformOffsetX
@@ -191,29 +202,36 @@ object BitmapExportHelper {
                     val endX = end.x * transformScale + transformOffsetX
                     val endY = end.y * transformScale + transformOffsetY
                     
+                    // Calculate arrow head parameters
                     val angle = kotlin.math.atan2((endY - startY).toDouble(), (endX - startX).toDouble())
-                    val arrowLength = (s.width * transformScale * 3.5f).coerceAtLeast(12f)
-                    val arrowAngle = Math.PI / 7
+                    val arrowLength = (s.width * transformScale * 5f).coerceAtLeast(20f)  // Made larger for testing
+                    val arrowAngle = Math.PI / 6  // Wider angle
                     
+                    // Calculate arrow base (where line should stop)
+                    val arrowBaseX = (endX - arrowLength * 0.7f * kotlin.math.cos(angle)).toFloat()
+                    val arrowBaseY = (endY - arrowLength * 0.7f * kotlin.math.sin(angle)).toFloat()
+                    
+                    // Draw the main line (stopping at arrow base)
+                    canvas.drawLine(startX, startY, arrowBaseX, arrowBaseY, paint)
+                    
+                    // Calculate arrow head points
                     val arrow1X = (endX - arrowLength * kotlin.math.cos(angle - arrowAngle)).toFloat()
                     val arrow1Y = (endY - arrowLength * kotlin.math.sin(angle - arrowAngle)).toFloat()
                     val arrow2X = (endX - arrowLength * kotlin.math.cos(angle + arrowAngle)).toFloat()
                     val arrow2Y = (endY - arrowLength * kotlin.math.sin(angle + arrowAngle)).toFloat()
                     
-                    val arrowBaseX = (endX - arrowLength * 0.7f * kotlin.math.cos(angle)).toFloat()
-                    val arrowBaseY = (endY - arrowLength * 0.7f * kotlin.math.sin(angle)).toFloat()
-                    
-                    canvas.drawLine(startX, startY, arrowBaseX, arrowBaseY, paint)
-                    
+                    // Draw filled arrow head
+                    val arrowPaint = Paint().apply {
+                        color = s.color.toArgb()
+                        style = Paint.Style.FILL
+                        isAntiAlias = true
+                    }
                     val arrowPath = AndroidPath()
                     arrowPath.moveTo(endX, endY)
                     arrowPath.lineTo(arrow1X, arrow1Y)
                     arrowPath.lineTo(arrow2X, arrow2Y)
                     arrowPath.close()
-                    val prevStyle = paint.style
-                    paint.style = Paint.Style.FILL
-                    canvas.drawPath(arrowPath, paint)
-                    paint.style = prevStyle
+                    canvas.drawPath(arrowPath, arrowPaint)
                 }
                 s.shapeType != null -> {
                     val start = s.points.first()

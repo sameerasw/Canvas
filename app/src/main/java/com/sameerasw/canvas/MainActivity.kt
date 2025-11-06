@@ -216,7 +216,7 @@ fun CanvasApp(viewModel: CanvasViewModel) {
                                 val uri = BitmapStorageHelper.saveBitmapToCacheAndGetUri(context, bmp, filename, Bitmap.CompressFormat.PNG)
                                 if (uri != null) {
                                     // Serialize strokes and texts to JSON for passing to CropActivity
-                                    val gson = Gson()
+                                    val gson = com.sameerasw.canvas.util.GsonProvider.create()
                                     val strokesJson = gson.toJson(strokes)
                                     val textsJson = gson.toJson(texts)
 
