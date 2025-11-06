@@ -183,6 +183,15 @@ fun CanvasApp(viewModel: CanvasViewModel) {
                 canvasScale = scale
                 canvasOffsetX = offX
                 canvasOffsetY = offY
+            },
+            onStylusButtonPressed = {
+                // Toggle thingy idk how to explain this
+                if (currentTool == ToolType.ERASER) {
+                    currentTool = ToolType.PEN
+                } else {
+                    currentTool = ToolType.ERASER
+                }
+                HapticUtil.performToggleOn(haptics)
             }
         )
 

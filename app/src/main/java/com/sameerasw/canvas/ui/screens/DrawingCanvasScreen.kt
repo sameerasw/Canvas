@@ -14,13 +14,18 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.PointerType
+import androidx.compose.ui.input.pointer.pointerInteropFilter
 import androidx.compose.ui.platform.LocalContext
+import android.view.MotionEvent
 import androidx.compose.ui.platform.LocalHapticFeedback
 import com.sameerasw.canvas.model.DrawStroke
+import com.sameerasw.canvas.model.StylusPoint
 import com.sameerasw.canvas.model.ToolType
 import com.sameerasw.canvas.data.TextItem
 import com.sameerasw.canvas.ui.drawing.StrokeDrawer
 import com.sameerasw.canvas.ui.drawing.StrokeDrawer.drawScribbleStroke
+import com.sameerasw.canvas.ui.drawing.StrokeDrawer.drawPressureSensitiveStroke
 import com.sameerasw.canvas.ui.drawing.TextDrawer.drawStringWithFont
 import com.sameerasw.canvas.ui.drawing.BackgroundDrawer
 import com.sameerasw.canvas.utils.HapticUtil
@@ -53,11 +58,15 @@ fun DrawingCanvasScreen(
     onRemoveText: ((Long) -> Unit)? = null,
     onShowTextDialog: ((Boolean, Offset) -> Unit)? = null,
     onShowTextOptions: ((Boolean, Long?) -> Unit)? = null,
-    onUpdateCanvasTransform: ((scale: Float, offsetX: Float, offsetY: Float) -> Unit)? = null
+    onUpdateCanvasTransform: ((scale: Float, offsetX: Float, offsetY: Float) -> Unit)? = null,
+    onStylusButtonPressed: (() -> Unit)? = null
 ) {
     val haptics = LocalHapticFeedback.current
     val context = LocalContext.current
     val currentStroke = remember { mutableStateListOf<Offset>() }
+    val currentStylusPoints = remember { mutableStateListOf<StylusPoint>() }
+    val isCurrentStrokeFromStylus = remember { mutableStateOf(false) }
+    val isStylusButtonPressed = remember { mutableStateOf(false) }
     val eraserRadius = 30f
     val shapeStartPoint = remember { mutableStateOf<Offset?>(null) }
 
@@ -71,6 +80,20 @@ fun DrawingCanvasScreen(
 
     Canvas(
         modifier = modifier
+            .pointerInteropFilter { event ->
+                // Detect S Pen button press from raw MotionEvent api thingy that took me years to find ( Minutes )
+                if (event.getToolType(0) == MotionEvent.TOOL_TYPE_STYLUS) {
+                    val isButtonPressed = (event.buttonState and MotionEvent.BUTTON_STYLUS_PRIMARY) != 0
+                    val wasPressed = isStylusButtonPressed.value
+                    isStylusButtonPressed.value = isButtonPressed
+                    
+                    // Trigger callback when button state changes
+                    if (isButtonPressed && !wasPressed) {
+                        onStylusButtonPressed?.invoke()
+                    }
+                }
+                false // Don't consume the event, let other handlers process it hehe
+            }
             .pointerInput(currentTool) {
                 detectTransformGestures { centroid, pan, zoom, _ ->
                     // Only allow transform gestures when not actively drawing with other tools
@@ -92,13 +115,27 @@ fun DrawingCanvasScreen(
                 detectDragGestures(
                     onDragStart = { offset ->
                         currentStroke.clear()
+                        currentStylusPoints.clear()
                         val worldStart = Offset((offset.x - offsetX.value) / scale.value, (offset.y - offsetY.value) / scale.value)
                         currentStroke.add(worldStart)
                     },
                     onDrag = { change: PointerInputChange, _ ->
+                        // Detect stylus input
+                        val isStylus = change.type == PointerType.Stylus || change.type == PointerType.Eraser
+                        isCurrentStrokeFromStylus.value = isStylus
+                        
+                        // Capture stylus data if available
+                        if (isStylus) {
+                            val worldPos = Offset((change.position.x - offsetX.value) / scale.value, (change.position.y - offsetY.value) / scale.value)
+                            val pressure = change.pressure.coerceIn(0f, 1f)
+                            currentStylusPoints.add(StylusPoint(worldPos, pressure, 0f, 0f))
+                        }
                         val worldPos = Offset((change.position.x - offsetX.value) / scale.value, (change.position.y - offsetY.value) / scale.value)
+                        
+                        // Determine effective tool (use eraser if button is pressed)
+                        val effectiveTool = if (isStylusButtonPressed.value) ToolType.ERASER else currentTool
 
-                        if (currentTool == ToolType.HAND) {
+                        if (effectiveTool == ToolType.HAND) {
                             offsetX.value += change.position.x - change.previousPosition.x
                             offsetY.value += change.position.y - change.previousPosition.y
                             onUpdateCanvasTransform?.invoke(scale.value, offsetX.value, offsetY.value)
@@ -123,7 +160,7 @@ fun DrawingCanvasScreen(
                                 lastMovePos.value = pos
                             }
 
-                            if (currentTool == ToolType.PEN && drawingHapticJob.value == null) {
+                            if (effectiveTool == ToolType.PEN && drawingHapticJob.value == null) {
                                 drawingHapticJob.value = CoroutineScope(Dispatchers.Main).launch {
                                     val minInterval = 10L
                                     val maxInterval = 450L
@@ -142,7 +179,7 @@ fun DrawingCanvasScreen(
                                 }
                             }
 
-                            when (currentTool) {
+                            when (effectiveTool) {
                                 ToolType.ERASER -> {
                                     val worldThreshold = eraserRadius / scale.value
                                     var removedAny = false
@@ -209,14 +246,19 @@ fun DrawingCanvasScreen(
                         change.consume()
                     },
                     onDragEnd = {
-                        when (currentTool) {
-                            ToolType.PEN -> {
+                        // Don't save strokes if button was pressed (eraser mode)
+                        if (!isStylusButtonPressed.value) {
+                            when (currentTool) {
+                                ToolType.PEN -> {
                                 if (currentStroke.size >= 2) {
                                     val newStroke = DrawStroke(
                                         currentStroke.toList(),
                                         currentColor,
                                         width = penWidth,
-                                        style = currentPenStyle
+                                        style = currentPenStyle,
+                                        stylusPoints = if (isCurrentStrokeFromStylus.value && currentStylusPoints.isNotEmpty()) 
+                                            currentStylusPoints.toList() else null,
+                                        isFromStylus = isCurrentStrokeFromStylus.value
                                     )
                                     onAddStroke?.invoke(newStroke)
                                 }
@@ -229,7 +271,10 @@ fun DrawingCanvasScreen(
                                         listOf(start, end),
                                         currentColor,
                                         width = arrowWidth,
-                                        isArrow = true
+                                        isArrow = true,
+                                        stylusPoints = if (isCurrentStrokeFromStylus.value && currentStylusPoints.size >= 2) 
+                                            listOf(currentStylusPoints.first(), currentStylusPoints.last()) else null,
+                                        isFromStylus = isCurrentStrokeFromStylus.value
                                     )
                                     onAddStroke?.invoke(newStroke)
                                 }
@@ -243,12 +288,16 @@ fun DrawingCanvasScreen(
                                         currentColor,
                                         width = shapeWidth,
                                         shapeType = currentShapeType,
-                                        isFilled = shapeFilled
+                                        isFilled = shapeFilled,
+                                        stylusPoints = if (isCurrentStrokeFromStylus.value && currentStylusPoints.size >= 2) 
+                                            listOf(currentStylusPoints.first(), currentStylusPoints.last()) else null,
+                                        isFromStylus = isCurrentStrokeFromStylus.value
                                     )
                                     onAddStroke?.invoke(newStroke)
                                 }
                             }
-                            else -> {}
+                                else -> {}
+                            }
                         }
                         drawingHapticJob.value?.cancel()
                         drawingHapticJob.value = null
@@ -256,6 +305,9 @@ fun DrawingCanvasScreen(
                         lastMoveTime.value = 0L
                         lastMovePos.value = Offset.Zero
                         currentStroke.clear()
+                        currentStylusPoints.clear()
+                        isCurrentStrokeFromStylus.value = false
+                        isStylusButtonPressed.value = false
                         shapeStartPoint.value = null
                     },
                     onDragCancel = {
@@ -265,6 +317,8 @@ fun DrawingCanvasScreen(
                         lastMoveTime.value = 0L
                         lastMovePos.value = Offset.Zero
                         currentStroke.clear()
+                        currentStylusPoints.clear()
+                        isCurrentStrokeFromStylus.value = false
                         shapeStartPoint.value = null
                     }
                 )
@@ -340,6 +394,18 @@ fun DrawingCanvasScreen(
                         drawShape(screenPoints.first(), screenPoints.last(), stroke.shapeType, stroke.color, stroke.width * scale.value, stroke.isFilled)
                     }
                 }
+                stroke.isFromStylus && stroke.stylusPoints != null && stroke.stylusPoints.size >= 2 -> {
+                    // Use pressure-sensitive rendering for stylus strokes
+                    val screenStylusPoints = stroke.stylusPoints.map { sp ->
+                        StylusPoint(
+                            offset = Offset(sp.offset.x * scale.value + offsetX.value, sp.offset.y * scale.value + offsetY.value),
+                            pressure = sp.pressure,
+                            tilt = sp.tilt,
+                            orientation = sp.orientation
+                        )
+                    }
+                    drawPressureSensitiveStroke(screenStylusPoints, stroke.color, stroke.width * scale.value, stroke.style)
+                }
                 screenPoints.size >= 2 -> {
                     drawScribbleStroke(screenPoints, stroke.color, stroke.width * scale.value, stroke.style)
                 }
@@ -356,8 +422,21 @@ fun DrawingCanvasScreen(
         when (currentTool) {
             ToolType.PEN -> {
                 if (currentStroke.size >= 2) {
-                    val screenPoints = currentStroke.map { world -> Offset(world.x * scale.value + offsetX.value, world.y * scale.value + offsetY.value) }
-                    drawScribbleStroke(screenPoints, currentColor, penWidth * scale.value, currentPenStyle)
+                    if (isCurrentStrokeFromStylus.value && currentStylusPoints.size >= 2) {
+                        // Show pressure-sensitive preview for stylus
+                        val screenStylusPoints = currentStylusPoints.map { sp ->
+                            StylusPoint(
+                                offset = Offset(sp.offset.x * scale.value + offsetX.value, sp.offset.y * scale.value + offsetY.value),
+                                pressure = sp.pressure,
+                                tilt = sp.tilt,
+                                orientation = sp.orientation
+                            )
+                        }
+                        drawPressureSensitiveStroke(screenStylusPoints, currentColor, penWidth * scale.value, currentPenStyle)
+                    } else {
+                        val screenPoints = currentStroke.map { world -> Offset(world.x * scale.value + offsetX.value, world.y * scale.value + offsetY.value) }
+                        drawScribbleStroke(screenPoints, currentColor, penWidth * scale.value, currentPenStyle)
+                    }
                 }
             }
             ToolType.ARROW -> {
@@ -387,6 +466,8 @@ fun DrawingCanvasScreen(
             }
             else -> {}
         }
-    }
-}
+        
 
+    }
+
+} 

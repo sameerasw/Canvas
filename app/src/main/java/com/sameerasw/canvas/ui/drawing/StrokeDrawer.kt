@@ -8,6 +8,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import com.sameerasw.canvas.model.PenStyle
 import com.sameerasw.canvas.model.ShapeType
+import com.sameerasw.canvas.model.StylusPoint
 import kotlin.math.abs
 import kotlin.math.atan2
 import kotlin.math.cos
@@ -23,6 +24,98 @@ object StrokeDrawer {
             PenStyle.NORMAL -> drawNormalStroke(stroke, color, width)
             PenStyle.SMOOTH -> drawSmoothStroke(stroke, color, width)
             PenStyle.ROUGH -> drawRoughStroke(stroke, color, width)
+        }
+    }
+    
+    fun DrawScope.drawPressureSensitiveStroke(
+        stylusPoints: List<StylusPoint>,
+        color: Color,
+        baseWidth: Float,
+        style: PenStyle = PenStyle.NORMAL
+    ) {
+        if (stylusPoints.size < 2) return
+        
+        when (style) {
+            PenStyle.NORMAL -> drawPressureNormalStroke(stylusPoints, color, baseWidth)
+            PenStyle.SMOOTH -> drawPressureSmoothStroke(stylusPoints, color, baseWidth)
+            PenStyle.ROUGH -> drawPressureRoughStroke(stylusPoints, color, baseWidth)
+        }
+    }
+    
+    private fun DrawScope.drawPressureNormalStroke(
+        stylusPoints: List<StylusPoint>,
+        color: Color,
+        baseWidth: Float
+    ) {
+        // Draw segments with varying width based on pressure
+        for (i in 0 until stylusPoints.size - 1) {
+            val start = stylusPoints[i]
+            val end = stylusPoints[i + 1]
+            
+            val avgPressure = (start.pressure + end.pressure) / 2f
+            val segmentWidth = baseWidth * (0.3f + 0.7f * avgPressure)
+            
+            // Apply tilt for opacity variation
+            val avgTilt = (start.tilt + end.tilt) / 2f
+            val tiltOpacity = 0.85f + (0.15f * (avgTilt / 1.0f).coerceIn(0f, 1f))
+            
+            drawLine(
+                color = color.copy(alpha = color.alpha * tiltOpacity),
+                start = start.offset,
+                end = end.offset,
+                strokeWidth = segmentWidth
+            )
+        }
+    }
+    
+    private fun DrawScope.drawPressureSmoothStroke(
+        stylusPoints: List<StylusPoint>,
+        color: Color,
+        baseWidth: Float
+    ) {
+        // Create smooth path with pressure-varying width
+        val path = Path()
+        path.moveTo(stylusPoints.first().offset.x, stylusPoints.first().offset.y)
+        
+        for (i in 1 until stylusPoints.size) {
+            val prev = stylusPoints[i - 1]
+            val curr = stylusPoints[i]
+            val midX = (prev.offset.x + curr.offset.x) / 2f
+            val midY = (prev.offset.y + curr.offset.y) / 2f
+            path.quadraticTo(prev.offset.x, prev.offset.y, midX, midY)
+        }
+        path.lineTo(stylusPoints.last().offset.x, stylusPoints.last().offset.y)
+        
+        // Use average pressure for the whole stroke
+        val avgPressure = stylusPoints.map { it.pressure }.average().toFloat()
+        val strokeWidth = baseWidth * (0.3f + 0.7f * avgPressure)
+        
+        drawPath(path, color, style = Stroke(width = strokeWidth))
+    }
+    
+    private fun DrawScope.drawPressureRoughStroke(
+        stylusPoints: List<StylusPoint>,
+        color: Color,
+        baseWidth: Float
+    ) {
+        for (i in 0 until stylusPoints.size - 1) {
+            val start = stylusPoints[i]
+            val end = stylusPoints[i + 1]
+            
+            val avgPressure = (start.pressure + end.pressure) / 2f
+            val segmentWidth = baseWidth * (0.3f + 0.7f * avgPressure)
+            val jitter = segmentWidth * 0.3f
+            
+            val offsetStart = Offset(
+                start.offset.x + Random.nextFloat() * jitter - jitter / 2,
+                start.offset.y + Random.nextFloat() * jitter - jitter / 2
+            )
+            val offsetEnd = Offset(
+                end.offset.x + Random.nextFloat() * jitter - jitter / 2,
+                end.offset.y + Random.nextFloat() * jitter - jitter / 2
+            )
+            
+            drawLine(color, offsetStart, offsetEnd, strokeWidth = segmentWidth * 0.8f)
         }
     }
 

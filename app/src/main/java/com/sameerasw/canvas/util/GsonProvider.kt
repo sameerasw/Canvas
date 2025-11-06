@@ -10,6 +10,7 @@ object GsonProvider {
         return GsonBuilder()
             .registerTypeAdapter(Color::class.java, ColorTypeAdapter())
             .registerTypeAdapter(Offset::class.java, OffsetTypeAdapter())
+            .registerTypeAdapter(com.sameerasw.canvas.model.StylusPoint::class.java, StylusPointTypeAdapter())
             .create()
     }
 }
