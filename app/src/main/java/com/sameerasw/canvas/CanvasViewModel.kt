@@ -3,7 +3,6 @@ package com.sameerasw.canvas
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.sameerasw.canvas.data.CanvasRepository
 import com.sameerasw.canvas.data.TextItem
@@ -11,7 +10,6 @@ import com.sameerasw.canvas.model.DrawStroke
 import com.sameerasw.canvas.util.GsonProvider
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 data class CanvasModel(
