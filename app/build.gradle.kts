@@ -2,7 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
-    id("org.jetbrains.kotlin.kapt")
+    alias(libs.plugins.ksp)
 }
 
 android {
@@ -58,10 +58,10 @@ dependencies {
     implementation(libs.androidx.foundation)
     implementation(libs.androidx.foundation.layout)
     implementation(libs.androidx.animation)
-    kapt(libs.androidx.room.compiler)
+    ksp(libs.androidx.room.compiler)
 
     // Gson for serializing strokes
-    implementation("com.google.code.gson:gson:2.10.1")
+    implementation(libs.gson)
 
     // ViewModel Compose
     implementation(libs.androidx.lifecycle.viewmodel.compose)
