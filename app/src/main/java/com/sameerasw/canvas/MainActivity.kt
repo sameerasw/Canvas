@@ -37,7 +37,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import com.sameerasw.canvas.model.ToolType
-import com.sameerasw.canvas.ui.components.dialogs.AboutDialog
+import com.sameerasw.canvas.ui.components.sheets.AboutBottomSheet
 import com.sameerasw.canvas.ui.components.NotesRolePanel
 import com.sameerasw.canvas.ui.components.panels.PenWidthOptionsPanel
 import com.sameerasw.canvas.ui.components.panels.TextSizeOptionsPanel
@@ -310,7 +310,7 @@ class MainActivity : ComponentActivity() {
         var pendingTextValue by remember { mutableStateOf("") }
         var selectedTextId by remember { mutableStateOf<Long?>(null) }
         var showClearConfirm by remember { mutableStateOf(false) }
-        var showAboutDialog by remember { mutableStateOf(false) }
+        var showAboutSheet by remember { mutableStateOf(false) }
 
         var currentColor by remember { mutableStateOf(androidx.compose.ui.graphics.Color.Black) }
         var currentPenStyle by remember { mutableStateOf(com.sameerasw.canvas.model.PenStyle.NORMAL) }
@@ -475,7 +475,7 @@ class MainActivity : ComponentActivity() {
                         },
                         onAbout = {
                             topMenuOpen = false
-                            showAboutDialog = true
+                            showAboutSheet = true
                         }
                     )
                 }
@@ -506,10 +506,10 @@ class MainActivity : ComponentActivity() {
                 )
             }
 
-            // About dialog
-            if (showAboutDialog) {
-                AboutDialog(
-                    onDismissRequest = { showAboutDialog = false },
+            // About Bottom Sheet
+            if (showAboutSheet) {
+                AboutBottomSheet(
+                    onDismissRequest = { showAboutSheet = false },
                     onToggleDeveloperMode = {
                         Toast.makeText(context, "Developer mode toggled", Toast.LENGTH_SHORT).show()
                     }

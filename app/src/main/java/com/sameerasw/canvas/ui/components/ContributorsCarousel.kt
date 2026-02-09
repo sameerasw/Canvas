@@ -32,7 +32,7 @@ data class Contributor(
 @Composable
 fun ContributorsCarousel(
     contributors: List<Contributor> = listOf(
-        Contributor("sameerasw", "https://github.com/sameerasw"),
+//        Contributor("sameerasw", "https://github.com/sameerasw"),
         Contributor("Ivorisnoob", "https://github.com/Ivorisnoob")
     )
 ) {
@@ -44,7 +44,7 @@ fun ContributorsCarousel(
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Text(
-            text = "Contributors:",
+            text = "Contributions by:",
             style = MaterialTheme.typography.labelMedium,
             modifier = Modifier.padding(start = 8.dp)
         )
