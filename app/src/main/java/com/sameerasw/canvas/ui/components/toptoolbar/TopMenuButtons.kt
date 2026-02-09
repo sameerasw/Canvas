@@ -23,6 +23,7 @@ fun TopMenuButtons(
     visible: Boolean,
     onShare: () -> Unit,
     onInvert: () -> Unit,
+    onAddBackground: () -> Unit,
     onClear: () -> Unit,
     onSettings: () -> Unit,
     onAbout: () -> Unit
@@ -69,6 +70,16 @@ fun TopMenuButtons(
                 Icon(
                     painter = painterResource(id = R.drawable.rounded_invert_colors_24),
                     contentDescription = "Invert tones"
+                )
+            }
+
+            IconButton(onClick = {
+                HapticUtil.performClick(haptics)
+                onAddBackground()
+            }) {
+                Icon(
+                    painter = painterResource(id = R.drawable.rounded_format_paint_24),
+                    contentDescription = "Add background image"
                 )
             }
 

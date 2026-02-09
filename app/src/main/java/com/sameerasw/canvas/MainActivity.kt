@@ -117,6 +117,21 @@ class MainActivity : ComponentActivity() {
         )
     }
 
+    // ActivityResultLauncher for picking background image
+    private val pickBackgroundImageLauncher = registerForActivityResult(
+        ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        if (uri != null) {
+            Log.d("MainActivity", "Background image selected: $uri")
+            try {
+                contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            } catch (e: Exception) {
+                Log.w("MainActivity", "Failed to take persistable URI permission: ${e.message}")
+            }
+            viewModel.setBackgroundImageUri(uri.toString())
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // init settings repository early so HapticUtil can read preferences
@@ -150,7 +165,8 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    CanvasApp(viewModel)
+                    val backgroundImageUri by viewModel.backgroundImageUri.collectAsState()
+                    CanvasApp(viewModel, backgroundImageUri)
                 }
             }
         }
@@ -258,7 +274,7 @@ class MainActivity : ComponentActivity() {
     }
 
     @Composable
-    fun CanvasApp(viewModel: CanvasViewModel) {
+    fun CanvasApp(viewModel: CanvasViewModel, backgroundImageUri: String?) {
         var currentTool by remember { mutableStateOf(ToolType.PEN) }
         val strokes by viewModel.strokes.collectAsState()
         val texts by viewModel.texts.collectAsState()
@@ -321,6 +337,7 @@ class MainActivity : ComponentActivity() {
                 arrowWidth = arrowWidth,
                 shapeWidth = shapeWidth,
                 shapeFilled = shapeFilled,
+                backgroundImageUri = backgroundImageUri,
                 modifier = Modifier
                     .fillMaxSize()
                     .onSizeChanged { size ->
@@ -387,6 +404,7 @@ class MainActivity : ComponentActivity() {
                                     context,
                                     strokes,
                                     texts,
+                                    backgroundImageUri = backgroundImageUri,
                                     outputWidth = canvasViewSize.width.coerceAtLeast(1),
                                     outputHeight = canvasViewSize.height.coerceAtLeast(1)
                                 )
@@ -406,6 +424,7 @@ class MainActivity : ComponentActivity() {
                                         val intent =
                                             Intent(context, CropActivity::class.java).apply {
                                                 putExtra("image_uri", uri.toString())
+                                                putExtra("background_image_uri", backgroundImageUri)
                                                 putExtra("is_share", true)
                                                 putExtra("strokes_json", strokesJson)
                                                 putExtra("texts_json", textsJson)
@@ -431,6 +450,12 @@ class MainActivity : ComponentActivity() {
                         onInvert = {
                             topMenuOpen = false
                             viewModel.invert()
+                        },
+                        onAddBackground = {
+                            topMenuOpen = false
+                            pickBackgroundImageLauncher.launch(
+                                androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                            )
                         },
                         onSettings = {
                             topMenuOpen = false

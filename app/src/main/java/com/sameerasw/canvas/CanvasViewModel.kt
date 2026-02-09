@@ -14,7 +14,8 @@ import kotlinx.coroutines.launch
 
 data class CanvasModel(
     val strokes: List<DrawStroke> = emptyList(),
-    val texts: List<TextItem> = emptyList()
+    val texts: List<TextItem> = emptyList(),
+    val backgroundImageUri: String? = null
 )
 
 class CanvasViewModel(application: Application) : AndroidViewModel(application) {
@@ -26,6 +27,9 @@ class CanvasViewModel(application: Application) : AndroidViewModel(application) 
 
     private val _texts = MutableStateFlow<List<TextItem>>(emptyList())
     val texts = _texts.asStateFlow()
+    
+    private val _backgroundImageUri = MutableStateFlow<String?>(null)
+    val backgroundImageUri = _backgroundImageUri.asStateFlow()
 
     // Notes Role state
     private val _stylusMode = MutableStateFlow(false)
@@ -56,7 +60,7 @@ class CanvasViewModel(application: Application) : AndroidViewModel(application) 
 
     private fun pushUndoSnapshot() {
         // capture current state
-        undoStack.addLast(CanvasModel(_strokes.value, _texts.value))
+        undoStack.addLast(CanvasModel(_strokes.value, _texts.value, _backgroundImageUri.value))
         // cap stack size to reasonable limit (e.g., 50)
         if (undoStack.size > 50) undoStack.removeFirst()
         _canUndo.value = undoStack.isNotEmpty()
@@ -114,6 +118,12 @@ class CanvasViewModel(application: Application) : AndroidViewModel(application) 
         // Directly clear both lists to avoid double-pushing undo snapshots
         _strokes.value = emptyList()
         _texts.value = emptyList()
+        _backgroundImageUri.value = null
+    }
+
+    fun setBackgroundImageUri(uri: String?) {
+        pushUndoSnapshot()
+        _backgroundImageUri.value = uri
     }
 
     fun invert() {
@@ -145,30 +155,32 @@ class CanvasViewModel(application: Application) : AndroidViewModel(application) 
     fun undo() {
         if (undoStack.isEmpty()) return
         // push current state to redo
-        redoStack.addLast(CanvasModel(_strokes.value, _texts.value))
+        redoStack.addLast(CanvasModel(_strokes.value, _texts.value, _backgroundImageUri.value))
         _canRedo.value = redoStack.isNotEmpty()
         // restore previous state
         val prev = undoStack.removeLast()
         _strokes.value = prev.strokes
         _texts.value = prev.texts
+        _backgroundImageUri.value = prev.backgroundImageUri
         _canUndo.value = undoStack.isNotEmpty()
     }
 
     fun redo() {
         if (redoStack.isEmpty()) return
         // push current state to undo
-        undoStack.addLast(CanvasModel(_strokes.value, _texts.value))
+        undoStack.addLast(CanvasModel(_strokes.value, _texts.value, _backgroundImageUri.value))
         _canUndo.value = undoStack.isNotEmpty()
         // restore next state
         val next = redoStack.removeLast()
         _strokes.value = next.strokes
         _texts.value = next.texts
+        _backgroundImageUri.value = next.backgroundImageUri
         _canRedo.value = redoStack.isNotEmpty()
     }
 
     fun save() {
         viewModelScope.launch {
-            val model = CanvasModel(_strokes.value, _texts.value)
+            val model = CanvasModel(_strokes.value, _texts.value, _backgroundImageUri.value)
             val json = gson.toJson(model)
             repository.saveCanvas(json)
         }
@@ -183,6 +195,7 @@ class CanvasViewModel(application: Application) : AndroidViewModel(application) 
                     val model: CanvasModel = gson.fromJson(json, type)
                     _strokes.value = model.strokes
                     _texts.value = model.texts
+                    _backgroundImageUri.value = model.backgroundImageUri
                 } catch (_: Exception) {
                     try {
                         val type = object : TypeToken<List<DrawStroke>>() {}.type

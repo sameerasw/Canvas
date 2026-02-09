@@ -22,14 +22,28 @@ object BitmapExportHelper {
         context: Context,
         strokes: List<DrawStroke>,
         texts: List<TextItem>,
+        backgroundImageUri: String? = null,
         outputWidth: Int = 2048,
         outputHeight: Int = 2048
     ): Bitmap? = withContext(Dispatchers.Default) {
-        if (strokes.isEmpty() && texts.isEmpty()) return@withContext null
+        if (strokes.isEmpty() && texts.isEmpty() && backgroundImageUri == null) return@withContext null
 
         val bmp = createBitmap(outputWidth, outputHeight)
         val canvas = AndroidCanvas(bmp)
         canvas.drawColor(android.graphics.Color.WHITE)
+
+        // Draw background image if present
+        backgroundImageUri?.let { uriString ->
+            try {
+                val uri = android.net.Uri.parse(uriString)
+                val inputStream = context.contentResolver.openInputStream(uri)
+                val bgBmp = android.graphics.BitmapFactory.decodeStream(inputStream)
+                if (bgBmp != null) {
+                    canvas.drawBitmap(bgBmp, 0f, 0f, null)
+                    bgBmp.recycle()
+                }
+            } catch (_: Exception) { }
+        }
 
 
         val paint = Paint().apply {
@@ -170,14 +184,34 @@ object BitmapExportHelper {
         cropWidth: Int,
         cropHeight: Int,
         outputWidth: Int,
-        outputHeight: Int
+        outputHeight: Int,
+        backgroundImageUri: String? = null
     ): Bitmap? = withContext(Dispatchers.Default) {
-        if (strokes.isEmpty() && texts.isEmpty()) return@withContext null
+        if (strokes.isEmpty() && texts.isEmpty() && backgroundImageUri == null) return@withContext null
 
         // Render full view-sized bitmap that matches the on-screen canvas rendering
         val full = createBitmap(viewWidth.coerceAtLeast(1), viewHeight.coerceAtLeast(1))
         val canvas = AndroidCanvas(full)
         canvas.drawColor(android.graphics.Color.WHITE)
+
+        // Draw background image if present with transform
+        backgroundImageUri?.let { uriString ->
+            try {
+                val uri = android.net.Uri.parse(uriString)
+                val inputStream = context.contentResolver.openInputStream(uri)
+                val bgBmp = android.graphics.BitmapFactory.decodeStream(inputStream)
+                if (bgBmp != null) {
+                    val drawWidth = (bgBmp.width * transformScale).toInt()
+                    val drawHeight = (bgBmp.height * transformScale).toInt()
+                    if (drawWidth > 0 && drawHeight > 0) {
+                        val scaledBg = Bitmap.createScaledBitmap(bgBmp, drawWidth, drawHeight, true)
+                        canvas.drawBitmap(scaledBg, transformOffsetX, transformOffsetY, null)
+                        if (scaledBg != bgBmp) scaledBg.recycle()
+                    }
+                    bgBmp.recycle()
+                }
+            } catch (_: Exception) { }
+        }
 
 
         val paint = Paint().apply {

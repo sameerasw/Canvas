@@ -34,9 +34,11 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.geometry.Rect as ComposeRect
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathFillType
+import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.toArgb
@@ -68,6 +70,7 @@ class CropActivity : ComponentActivity() {
         val isShare = intent?.getBooleanExtra("is_share", true) ?: true
         val strokesJson = intent?.getStringExtra("strokes_json") ?: "[]"
         val textsJson = intent?.getStringExtra("texts_json") ?: "[]"
+        val backgroundImageUri = intent?.getStringExtra("background_image_uri")
 
         if (imageUriString == null) {
             finish()
@@ -101,8 +104,24 @@ class CropActivity : ComponentActivity() {
                     var strokes by remember { mutableStateOf<List<DrawStroke>>(emptyList()) }
                     var texts by remember { mutableStateOf<List<TextItem>>(emptyList()) }
                     var canvasBackgroundColor by remember { mutableStateOf(Color.White) }
+                    var backgroundImage by remember { mutableStateOf<ImageBitmap?>(null) }
                     val scope = rememberCoroutineScope()
                     val haptics = LocalHapticFeedback.current
+
+                    // Load background image if provided
+                    LaunchedEffect(backgroundImageUri) {
+                        backgroundImageUri?.let { uriString ->
+                            try {
+                                withContext(Dispatchers.IO) {
+                                    val stream = context.contentResolver.openInputStream(uriString.toUri())
+                                    val bmp = BitmapFactory.decodeStream(stream)
+                                    if (bmp != null) {
+                                        backgroundImage = bmp.asImageBitmap()
+                                    }
+                                }
+                            } catch (_: Exception) {}
+                        }
+                    }
 
                     // Deserialize strokes and texts on first composition
                     LaunchedEffect(Unit) {
@@ -207,8 +226,25 @@ class CropActivity : ComponentActivity() {
                             val overlayLeft = (viewWidth - overlayW) / 2f
                             val overlayTop = (viewHeight - overlayH) / 2f
 
-                            // Content Canvas: draw strokes and texts only (no underlying bitmap)
+                            // Content Canvas: draw background, strokes and texts
                             Canvas(modifier = Modifier.fillMaxSize()) {
+                                // Draw background image if any
+                                backgroundImage?.let { imageBitmap ->
+                                    val drawWidth = imageBitmap.width * scale
+                                    val drawHeight = imageBitmap.height * scale
+                                    drawImage(
+                                        image = imageBitmap,
+                                        dstOffset = androidx.compose.ui.unit.IntOffset(
+                                            offsetX.toInt(),
+                                            offsetY.toInt()
+                                        ),
+                                        dstSize = androidx.compose.ui.unit.IntSize(
+                                            drawWidth.toInt(),
+                                            drawHeight.toInt()
+                                        )
+                                    )
+                                }
+
                                 // Draw strokes
                                 strokes.forEach { stroke ->
                                     if (stroke.points.size >= 2) {
@@ -404,6 +440,7 @@ class CropActivity : ComponentActivity() {
                                                                 scale,
                                                                 strokes,
                                                                 texts,
+                                                                backgroundImage,
                                                                 context,
                                                                 canvasBackgroundColor
                                                             )
@@ -471,6 +508,7 @@ class CropActivity : ComponentActivity() {
                                                                 scale,
                                                                 strokes,
                                                                 texts,
+                                                                backgroundImage,
                                                                 context,
                                                                 canvasBackgroundColor
                                                             )
@@ -567,6 +605,7 @@ class CropActivity : ComponentActivity() {
                                                                 scale,
                                                                 strokes,
                                                                 texts,
+                                                                backgroundImage,
                                                                 context,
                                                                 canvasBackgroundColor
                                                             )
@@ -641,6 +680,7 @@ class CropActivity : ComponentActivity() {
         scale: Float,
         strokes: List<DrawStroke>,
         texts: List<TextItem>,
+        backgroundImage: ImageBitmap?,
         context: android.content.Context,
         backgroundColor: Color
     ): android.graphics.Bitmap? {
@@ -652,6 +692,24 @@ class CropActivity : ComponentActivity() {
                 val outBmp = createBitmap(outW, outH)
                 val canvas = android.graphics.Canvas(outBmp)
                 canvas.drawColor(backgroundColor.toArgb())
+
+                // Draw background image if provided
+                backgroundImage?.let { img ->
+                    val androidBmp = img.asAndroidBitmap()
+                    val worldLeft = (overlayLeft - offsetX) / scale
+                    val worldTop = (overlayTop - offsetY) / scale
+                    val worldWidth = overlayW / scale
+                    val worldHeight = overlayH / scale
+
+                    val destRect = android.graphics.Rect(0, 0, outW, outH)
+                    val srcRect = android.graphics.Rect(
+                        worldLeft.toInt(),
+                        worldTop.toInt(),
+                        (worldLeft + worldWidth).toInt(),
+                        (worldTop + worldHeight).toInt()
+                    )
+                    canvas.drawBitmap(androidBmp, srcRect, destRect, null)
+                }
 
                 val paint = android.graphics.Paint().apply {
                     isAntiAlias = true
