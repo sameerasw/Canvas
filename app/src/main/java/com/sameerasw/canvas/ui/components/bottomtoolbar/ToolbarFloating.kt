@@ -23,9 +23,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.FloatingToolbarDefaults
 import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -80,6 +82,10 @@ fun ToolbarFloating(
     )
 
     HorizontalFloatingToolbar(
+        colors = FloatingToolbarDefaults.vibrantFloatingToolbarColors(
+            toolbarContentColor = MaterialTheme.colorScheme.onPrimary,
+            toolbarContainerColor = MaterialTheme.colorScheme.primary
+        ),
         modifier = Modifier
             .graphicsLayer {
                 scaleX = toolbarScale
@@ -91,16 +97,21 @@ fun ToolbarFloating(
             ),
         expanded = expanded,
         content = {
-            FilledIconButton(
+            IconButton(
                 modifier = Modifier
                     .width(64.dp)
                     .height(48.dp)
                     .scale(buttonScale),
-                onClick = onExpandToggle
+                onClick = onExpandToggle,
+                colors =
+                    IconButtonDefaults.filledIconButtonColors(
+                        contentColor = MaterialTheme.colorScheme.primary,
+                        containerColor = MaterialTheme.colorScheme.background
+                    )
             ) {
                 // Animated icon morph with crossfade
                 AnimatedContent(
-                    targetState = if (expanded) "expanded" to R.drawable.icon else currentTool.name to getToolIcon(currentTool),
+                    targetState = if (expanded) "expanded" to R.drawable.ic_launcher_monochrome else currentTool.name to getToolIcon(currentTool),
                     transitionSpec = {
                         (fadeIn(animationSpec = spring(
                             dampingRatio = Spring.DampingRatioMediumBouncy,
@@ -121,7 +132,7 @@ fun ToolbarFloating(
                     Icon(
                         painter = painterResource(id = iconRes),
                         contentDescription = "Toggle toolbar",
-                        tint = MaterialTheme.colorScheme.onPrimary,
+                        tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.width(iconWidth)
                     )
                 }
@@ -301,7 +312,7 @@ private fun AnimatedToolButton(
                 if (borderAlpha > 0.01f)
                     Modifier.border(
                         width = 1.dp,
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = borderAlpha),
+                        color = MaterialTheme.colorScheme.onPrimary.copy(alpha = borderAlpha),
                         shape = RoundedCornerShape(24.dp)
                     )
                 else Modifier
@@ -311,8 +322,8 @@ private fun AnimatedToolButton(
         Icon(
             painter = painterResource(id = iconRes),
             contentDescription = contentDescription,
-            tint = if (isSelected) MaterialTheme.colorScheme.primary
-            else MaterialTheme.colorScheme.onSurfaceVariant,
+            tint = if (isSelected) MaterialTheme.colorScheme.onPrimary
+            else MaterialTheme.colorScheme.onPrimary,
             modifier = Modifier
                 .width(iconWidth)
                 .graphicsLayer {
