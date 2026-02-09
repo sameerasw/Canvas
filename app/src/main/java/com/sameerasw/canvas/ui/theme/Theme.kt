@@ -7,8 +7,12 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
-import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
+import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
+import androidx.activity.enableEdgeToEdge
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 
 private val DarkColorScheme = darkColorScheme(
     primary = Purple80,
@@ -49,6 +53,21 @@ fun CanvasTheme(
         else -> LightColorScheme
     }
 
+    val context = LocalContext.current
+    DisposableEffect(darkTheme) {
+        (context as? ComponentActivity)?.enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.auto(
+                android.graphics.Color.TRANSPARENT,
+                android.graphics.Color.TRANSPARENT
+            ) { darkTheme },
+            navigationBarStyle = SystemBarStyle.auto(
+                android.graphics.Color.TRANSPARENT,
+                android.graphics.Color.TRANSPARENT
+            ) { darkTheme }
+        )
+        onDispose {}
+    }
+
     MaterialTheme(
         colorScheme = colorScheme,
         typography = Typography,
@@ -74,6 +93,21 @@ fun CanvasThemeWithMode(
         if (isDarkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
     } else {
         if (isDarkTheme) DarkColorScheme else LightColorScheme
+    }
+
+    val context = LocalContext.current
+    DisposableEffect(isDarkTheme) {
+        (context as? ComponentActivity)?.enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.auto(
+                android.graphics.Color.TRANSPARENT,
+                android.graphics.Color.TRANSPARENT
+            ) { isDarkTheme },
+            navigationBarStyle = SystemBarStyle.auto(
+                android.graphics.Color.TRANSPARENT,
+                android.graphics.Color.TRANSPARENT
+            ) { isDarkTheme }
+        )
+        onDispose {}
     }
 
     MaterialTheme(
