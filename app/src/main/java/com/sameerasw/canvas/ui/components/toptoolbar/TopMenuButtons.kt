@@ -18,6 +18,7 @@ import com.sameerasw.canvas.R
 import androidx.compose.ui.platform.LocalHapticFeedback
 import com.sameerasw.canvas.utils.HapticUtil
 
+@OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun TopMenuButtons(
     visible: Boolean,
@@ -26,31 +27,37 @@ fun TopMenuButtons(
     onAddBackground: () -> Unit,
     onClear: () -> Unit,
     onSettings: () -> Unit,
-    onAbout: () -> Unit
+    onAbout: () -> Unit,
+    loadingShare: Boolean = false
 ) {
     val haptics = LocalHapticFeedback.current
 
     AnimatedVisibility(
         visible = visible,
-        // Combine a size transform (expand/shrink) with slide so the container grows/shrinks in layout
-        // and the content slides left->right when appearing. Use the same tween for sync.
         enter = expandHorizontally(expandFrom = Alignment.Start, animationSpec = tween(260)) +
                 slideInHorizontally(initialOffsetX = { -it }, animationSpec = tween(260)),
         exit = slideOutHorizontally(targetOffsetX = { -it }, animationSpec = tween(260)) +
-               shrinkHorizontally(shrinkTowards = Alignment.Start, animationSpec = tween(260))
+                shrinkHorizontally(shrinkTowards = Alignment.Start, animationSpec = tween(260))
     ) {
         Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = {
-                HapticUtil.performClick(haptics)
-                onShare()
-            }) {
-                Icon(
-                    painter = painterResource(id = R.drawable.rounded_ios_share_24),
-                    contentDescription = "Share"
-                )
+            IconButton(
+                onClick = {
+                    HapticUtil.performClick(haptics)
+                    onShare()
+                },
+                enabled = !loadingShare
+            ) {
+                if (loadingShare) {
+                    androidx.compose.material3.LoadingIndicator()
+                } else {
+                    Icon(
+                        painter = painterResource(id = R.drawable.rounded_ios_share_24),
+                        contentDescription = "Share"
+                    )
+                }
             }
 
             IconButton(onClick = {
@@ -78,7 +85,7 @@ fun TopMenuButtons(
                 onAddBackground()
             }) {
                 Icon(
-                    painter = painterResource(id = R.drawable.rounded_format_paint_24),
+                    painter = painterResource(id = R.drawable.rounded_image_24),
                     contentDescription = "Add background image"
                 )
             }

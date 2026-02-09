@@ -65,6 +65,11 @@ import com.sameerasw.canvas.util.NotesRoleManager
 import com.sameerasw.canvas.util.KeyguardHelper
 import com.sameerasw.canvas.util.ContentCaptureManager
 import android.util.Log
+import androidx.compose.foundation.background
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.LoadingIndicator
+import androidx.compose.ui.graphics.Color.Companion.Black
+import androidx.compose.ui.input.pointer.pointerInput
 
 class MainActivity : ComponentActivity() {
     private val viewModel: CanvasViewModel by viewModels()
@@ -273,8 +278,10 @@ class MainActivity : ComponentActivity() {
         ContentCaptureManager.launchContentCapture(contentCaptureLauncher)
     }
 
+    @OptIn(ExperimentalMaterial3ExpressiveApi::class)
     @Composable
     fun CanvasApp(viewModel: CanvasViewModel, backgroundImageUri: String?) {
+        var isProcessing by remember { mutableStateOf(false) }
         var currentTool by remember { mutableStateOf(ToolType.PEN) }
         val strokes by viewModel.strokes.collectAsState()
         val texts by viewModel.texts.collectAsState()
@@ -394,8 +401,10 @@ class MainActivity : ComponentActivity() {
                 menuContent = {
                     TopMenuButtons(
                         visible = topMenuOpen,
+                        loadingShare = isProcessing,
                         onShare = {
                             topMenuOpen = false
+                            isProcessing = true
                             CoroutineScope(Dispatchers.Main).launch {
                                 val ts =
                                     SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
@@ -441,6 +450,7 @@ class MainActivity : ComponentActivity() {
                                     Toast.makeText(context, "Nothing to export", Toast.LENGTH_SHORT)
                                         .show()
                                 }
+                                isProcessing = false
                             }
                         },
                         onClear = {
@@ -734,5 +744,17 @@ class MainActivity : ComponentActivity() {
                 selectedTextId = null
             }
         )
+
+        if (isProcessing) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Black.copy(alpha = 0.4f))
+                    .pointerInput(Unit) {},
+                contentAlignment = Alignment.Center
+            ) {
+                LoadingIndicator()
+            }
+        }
     }
 }

@@ -140,7 +140,8 @@ class CropActivity : ComponentActivity() {
                     }
 
                     // Aspect selection: 0=9:16 (vertical), 1=1:1 (square), 2=16:9 (horizontal)
-                    var selectedAspectIndex by remember { mutableStateOf(1) } // default 1:1
+                    var selectedAspectIndex by remember { mutableStateOf(1) } // Default to Square
+            var isProcessing by remember { mutableStateOf(false) }
                     val aspectRatios = listOf(9f / 16f, 1f, 16f / 9f)
 
                     // UI state for transform gestures
@@ -429,6 +430,7 @@ class CropActivity : ComponentActivity() {
 
                                                     Button(onClick = {
                                                         HapticUtil.performClick(haptics)
+                                                        isProcessing = true
                                                         scope.launch {
                                                             val outBmp = performCropAndCreateBitmap(
                                                                 overlayLeft,
@@ -485,17 +487,22 @@ class CropActivity : ComponentActivity() {
                                                                     Toast.LENGTH_SHORT
                                                                 ).show()
                                                             }
+                                                            isProcessing = false
                                                         }
-                                                    }) {
-                                                        Icon(
-                                                            painter = painterResource(id = R.drawable.rounded_download_24),
-                                                            contentDescription = "Save"
-                                                        )
-                                                        Spacer(modifier = Modifier.size(8.dp))
-                                                        Text("Save")
+                                                    }, enabled = !isProcessing) {
+                                                        if (isProcessing) {
+                                                            androidx.compose.material3.LoadingIndicator()
+                                                        } else {
+                                                            Icon(
+                                                                painter = painterResource(id = R.drawable.rounded_download_24),
+                                                                contentDescription = "Save"
+                                                            )
+                                                            Spacer(modifier = Modifier.size(8.dp))
+                                                            Text("Save")
+                                                        }
                                                     }
 
-                                                    Button(onClick = {
+                                                    Button(onClick = { isProcessing = true; 
                                                         HapticUtil.performClick(haptics)
                                                         scope.launch {
                                                             val outBmp = performCropAndCreateBitmap(
@@ -573,16 +580,21 @@ class CropActivity : ComponentActivity() {
                                                                     Toast.LENGTH_SHORT
                                                                 ).show()
                                                             } finally {
+                                                                isProcessing = false
                                                                 finish()
                                                             }
                                                         }
-                                                    }) {
-                                                        Icon(
-                                                            painter = painterResource(id = R.drawable.rounded_ios_share_24),
-                                                            contentDescription = "Share"
-                                                        )
-                                                        Spacer(modifier = Modifier.size(8.dp))
-                                                        Text("Share")
+                                                    }, enabled = !isProcessing) {
+                                                        if (isProcessing) {
+                                                            androidx.compose.material3.LoadingIndicator()
+                                                        } else {
+                                                            Icon(
+                                                                painter = painterResource(id = R.drawable.rounded_ios_share_24),
+                                                                contentDescription = "Share"
+                                                            )
+                                                            Spacer(modifier = Modifier.size(8.dp))
+                                                            Text("Share")
+                                                        }
                                                     }
                                                 } else {
                                                     OutlinedButton(onClick = {
@@ -592,7 +604,7 @@ class CropActivity : ComponentActivity() {
                                                     }) {
                                                         Text("Back")
                                                     }
-                                                    Button(onClick = {
+                                                    Button(onClick = { isProcessing = true; 
                                                         HapticUtil.performClick(haptics)
                                                         scope.launch {
                                                             val outBmp = performCropAndCreateBitmap(
@@ -650,11 +662,11 @@ class CropActivity : ComponentActivity() {
                                                                     Toast.LENGTH_SHORT
                                                                 ).show()
                                                             } finally {
-                                                                finish()
+                                                                isProcessing = false; finish()
                                                             }
                                                         }
-                                                    }) {
-                                                        Text("Save")
+                                                    }, enabled = !isProcessing) {
+                                                        if (isProcessing) { androidx.compose.material3.LoadingIndicator() } else { Text("Save") }
                                                     }
                                                 }
                                             }
