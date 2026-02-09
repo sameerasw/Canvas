@@ -22,6 +22,7 @@ import com.sameerasw.canvas.utils.HapticUtil
 fun TopMenuButtons(
     visible: Boolean,
     onShare: () -> Unit,
+    onInvert: () -> Unit,
     onClear: () -> Unit,
     onSettings: () -> Unit,
     onAbout: () -> Unit
@@ -58,6 +59,16 @@ fun TopMenuButtons(
                 Icon(
                     painter = painterResource(id = R.drawable.rounded_cleaning_services_24),
                     contentDescription = "Clear all"
+                )
+            }
+
+            IconButton(onClick = {
+                HapticUtil.performClick(haptics)
+                onInvert()
+            }) {
+                Icon(
+                    painter = painterResource(id = R.drawable.rounded_invert_colors_24),
+                    contentDescription = "Invert tones"
                 )
             }
 

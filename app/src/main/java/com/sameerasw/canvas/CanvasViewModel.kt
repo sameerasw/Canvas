@@ -116,6 +116,31 @@ class CanvasViewModel(application: Application) : AndroidViewModel(application) 
         _texts.value = emptyList()
     }
 
+    fun invert() {
+        pushUndoSnapshot()
+        
+        fun invertColor(color: androidx.compose.ui.graphics.Color): androidx.compose.ui.graphics.Color {
+            val r = color.red
+            val g = color.green
+            val b = color.blue
+            val max = maxOf(r, maxOf(g, b))
+            val min = minOf(r, minOf(g, b))
+            return if (max - min < 0.1f) {
+                androidx.compose.ui.graphics.Color(1f - r, 1f - g, 1f - b, color.alpha)
+            } else {
+                color
+            }
+        }
+
+        _strokes.value = _strokes.value.map { stroke ->
+            stroke.copy(color = invertColor(stroke.color))
+        }
+        
+        _texts.value = _texts.value.map { text ->
+            text.copy(color = invertColor(text.color))
+        }
+    }
+
     // Undo/Redo operations
     fun undo() {
         if (undoStack.isEmpty()) return

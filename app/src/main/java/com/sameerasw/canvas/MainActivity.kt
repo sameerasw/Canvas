@@ -428,6 +428,10 @@ class MainActivity : ComponentActivity() {
                             topMenuOpen = false
                             showClearConfirm = true
                         },
+                        onInvert = {
+                            topMenuOpen = false
+                            viewModel.invert()
+                        },
                         onSettings = {
                             topMenuOpen = false
                             // open settings activity
