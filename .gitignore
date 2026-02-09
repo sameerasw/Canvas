@@ -33,3 +33,4 @@ replay_pid*
 
 app/release
 local.properties
+build/reports/problems/problems-report.html
