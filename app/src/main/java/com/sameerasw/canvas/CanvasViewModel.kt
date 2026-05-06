@@ -21,6 +21,9 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 
+import androidx.annotation.Keep
+
+@Keep
 data class CanvasModel(
     val strokes: List<DrawStroke> = emptyList(),
     val texts: List<TextItem> = emptyList(),

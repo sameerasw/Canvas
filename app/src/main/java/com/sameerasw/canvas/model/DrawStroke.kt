@@ -3,6 +3,9 @@ package com.sameerasw.canvas.model
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.geometry.Offset
 
+import androidx.annotation.Keep
+
+@Keep
 data class StylusPoint(
     val offset: Offset,
     val pressure: Float = 1f,
@@ -10,6 +13,7 @@ data class StylusPoint(
     val orientation: Float = 0f
 )
 
+@Keep
 data class DrawStroke(
     val points: List<Offset>,
     val color: Color = Color.Black,
