@@ -8,9 +8,16 @@ import com.sameerasw.canvas.data.CanvasRepository
 import com.sameerasw.canvas.data.TextItem
 import com.sameerasw.canvas.model.DrawStroke
 import com.sameerasw.canvas.util.GsonProvider
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.os.PowerManager
+import com.sameerasw.canvas.util.DeviceUtils
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 
 data class CanvasModel(
     val strokes: List<DrawStroke> = emptyList(),
@@ -54,8 +61,23 @@ class CanvasViewModel(application: Application) : AndroidViewModel(application) 
     private val _canRedo = MutableStateFlow(false)
     val canRedo = _canRedo.asStateFlow()
 
+    private val _isBlurEnabled = MutableStateFlow(true)
+    val isBlurEnabled = _isBlurEnabled.asStateFlow()
+
+    private var powerSaveReceiver: BroadcastReceiver? = null
+
     init {
         load()
+        updateBlurState()
+        registerPowerSaveReceiver()
+        
+        // Monitor settings changes (simplistic approach for this app)
+        viewModelScope.launch {
+            while (true) {
+                delay(1000)
+                updateBlurState()
+            }
+        }
     }
 
     private fun pushUndoSnapshot() {
@@ -224,5 +246,34 @@ class CanvasViewModel(application: Application) : AndroidViewModel(application) 
 
     fun setIsNotesRoleHeld(held: Boolean) {
         _isNotesRoleHeld.value = held
+    }
+
+    private fun updateBlurState() {
+        val useBlurSetting = SettingsRepository.getUseBlur()
+        val isProblematic = DeviceUtils.isBlurProblematicDevice()
+        val isPowerSave = DeviceUtils.isPowerSaveMode(getApplication())
+        
+        _isBlurEnabled.value = useBlurSetting && !isProblematic && !isPowerSave
+    }
+
+    private fun registerPowerSaveReceiver() {
+        if (powerSaveReceiver == null) {
+            powerSaveReceiver = object : BroadcastReceiver() {
+                override fun onReceive(context: Context?, intent: Intent?) {
+                    if (intent?.action == PowerManager.ACTION_POWER_SAVE_MODE_CHANGED) {
+                        updateBlurState()
+                    }
+                }
+            }
+            val filter = IntentFilter(PowerManager.ACTION_POWER_SAVE_MODE_CHANGED)
+            getApplication<Application>().registerReceiver(powerSaveReceiver, filter)
+        }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        powerSaveReceiver?.let {
+            getApplication<Application>().unregisterReceiver(it)
+        }
     }
 }

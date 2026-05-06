@@ -226,6 +226,26 @@ fun SettingsScreen(onThemeModeChange: (SettingsRepository.ThemeMode) -> Unit = {
                     }
                 }
             }
+
+            // Progressive Blur setting
+            var useBlur by remember { mutableStateOf(SettingsRepository.getUseBlur()) }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Progressive blur",
+                    style = MaterialTheme.typography.titleMedium
+                )
+
+                Switch(checked = useBlur, onCheckedChange = { new ->
+                    useBlur = new
+                    SettingsRepository.setUseBlur(new)
+                })
+            }
         }
     }
 }

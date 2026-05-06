@@ -66,10 +66,16 @@ import com.sameerasw.canvas.util.KeyguardHelper
 import com.sameerasw.canvas.util.ContentCaptureManager
 import android.util.Log
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.ui.graphics.Color.Companion.Black
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
+import com.sameerasw.canvas.ui.modifiers.BlurDirection
+import com.sameerasw.canvas.ui.modifiers.progressiveBlur
 
 class MainActivity : ComponentActivity() {
     private val viewModel: CanvasViewModel by viewModels()
@@ -330,26 +336,47 @@ class MainActivity : ComponentActivity() {
 
         val haptics = LocalHapticFeedback.current
         val context = LocalContext.current
+        val density = LocalDensity.current
+        val isBlurEnabled by viewModel.isBlurEnabled.collectAsState()
+        
+        val statusBarHeightPx = with(density) {
+            WindowInsets.statusBars.asPaddingValues().calculateTopPadding().toPx()
+        }
+        val bottomBlurHeightPx = with(density) { 140.dp.toPx() }
 
         Box(modifier = Modifier.fillMaxSize()) {
-            DrawingCanvasScreen(
-                currentTool = currentTool,
-                strokes = strokes,
-                texts = texts,
-                penWidth = penWidth,
-                textSize = textSize,
-                currentColor = currentColor,
-                currentPenStyle = currentPenStyle,
-                currentShapeType = currentShapeType,
-                arrowWidth = arrowWidth,
-                shapeWidth = shapeWidth,
-                shapeFilled = shapeFilled,
-                backgroundImageUri = backgroundImageUri,
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .onSizeChanged { size ->
-                        canvasViewSize = size
-                    },
+                    .progressiveBlur(
+                        blurRadius = if (isBlurEnabled) 40f else 0f,
+                        height = statusBarHeightPx * 1.5f,
+                        direction = BlurDirection.TOP
+                    )
+                    .progressiveBlur(
+                        blurRadius = if (isBlurEnabled) 20f else 0f,
+                        height = bottomBlurHeightPx,
+                        direction = BlurDirection.BOTTOM
+                    )
+            ) {
+                DrawingCanvasScreen(
+                    currentTool = currentTool,
+                    strokes = strokes,
+                    texts = texts,
+                    penWidth = penWidth,
+                    textSize = textSize,
+                    currentColor = currentColor,
+                    currentPenStyle = currentPenStyle,
+                    currentShapeType = currentShapeType,
+                    arrowWidth = arrowWidth,
+                    shapeWidth = shapeWidth,
+                    shapeFilled = shapeFilled,
+                    backgroundImageUri = backgroundImageUri,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .onSizeChanged { size ->
+                            canvasViewSize = size
+                        },
                 onAddStroke = { stroke: com.sameerasw.canvas.model.DrawStroke -> viewModel.addStroke(stroke) },
                 onRemoveStroke = { predicate: (com.sameerasw.canvas.model.DrawStroke) -> Boolean -> viewModel.removeStroke(predicate) },
                 onRemoveText = { id: Long -> viewModel.removeText(id) },
@@ -370,16 +397,17 @@ class MainActivity : ComponentActivity() {
                     canvasOffsetX = offX
                     canvasOffsetY = offY
                 },
-                onStylusButtonPressed = {
-                    // Toggle thingy idk how to explain this
-                    if (currentTool == ToolType.ERASER) {
-                        currentTool = ToolType.PEN
-                    } else {
-                        currentTool = ToolType.ERASER
+                    onStylusButtonPressed = {
+                        // Toggle thingy idk how to explain this
+                        if (currentTool == ToolType.ERASER) {
+                            currentTool = ToolType.PEN
+                        } else {
+                            currentTool = ToolType.ERASER
+                        }
+                        HapticUtil.performToggleOn(haptics)
                     }
-                    HapticUtil.performToggleOn(haptics)
-                }
-            )
+                )
+            }
 
             // Top overlay toolbar
             // If pinned, always visible; otherwise visible when expanded

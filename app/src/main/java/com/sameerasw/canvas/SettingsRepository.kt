@@ -12,6 +12,7 @@ object SettingsRepository {
     private const val KEY_PIN_TOP_TOOLBAR = "pin_top_toolbar"
     private const val KEY_CANVAS_BACKGROUND = "canvas_background"
     private const val KEY_THEME_MODE = "theme_mode"
+    private const val KEY_USE_BLUR = "use_blur"
 
     enum class HapticsLevel(val value: Int) {
         OFF(0),
@@ -88,5 +89,15 @@ object SettingsRepository {
 
     fun setThemeMode(theme: ThemeMode) {
         prefs?.edit()?.putInt(KEY_THEME_MODE, theme.value)?.apply()
+    }
+
+    // Progressive Blur setting (ON by default)
+    fun getUseBlur(): Boolean {
+        val p = prefs ?: return true
+        return p.getBoolean(KEY_USE_BLUR, true)
+    }
+
+    fun setUseBlur(enabled: Boolean) {
+        prefs?.edit()?.putBoolean(KEY_USE_BLUR, enabled)?.apply()
     }
 }
