@@ -26,3 +26,8 @@
 # Room rules
 -keep class * extends androidx.room.RoomDatabase
 -dontwarn androidx.room.paging.**
+
+# Suppress XR missing classes warnings
+-dontwarn com.android.extensions.xr.**
+-dontwarn com.google.androidxr.**
+-dontwarn com.google.imp.**
