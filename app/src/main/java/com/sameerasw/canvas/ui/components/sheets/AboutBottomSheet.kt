@@ -22,20 +22,23 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import com.sameerasw.canvas.R
 import com.sameerasw.canvas.ui.components.ContributorsCarousel
+import com.sameerasw.canvas.ui.components.MadebySameeraswCard
+import com.sameerasw.canvas.utils.HapticUtil
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class, ExperimentalLayoutApi::class)
 @Composable
 fun AboutBottomSheet(
     onDismissRequest: () -> Unit,
     onToggleDeveloperMode: () -> Unit,
-    appName: String = "Canvas",
-    developerName: String = "Sameera Wijerathna",
-    description: String = "It's a canvas for your imagination."
+    appName: String = stringResource(R.string.app_canvas),
+    developerName: String = stringResource(R.string.app_developer_name),
+    description: String = stringResource(R.string.app_description)
 ) {
     val context = LocalContext.current
     val haptics = LocalHapticFeedback.current
@@ -56,28 +59,25 @@ fun AboutBottomSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .verticalScroll(scrollState)
-                .padding(horizontal = 16.dp)
-                .padding(bottom = 32.dp),
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 48.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text(
-                text = "$appName v$versionName",
-                style = MaterialTheme.typography.headlineLarge,
-                textAlign = TextAlign.Center
-            )
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Text(text = "$appName v$versionName", style = MaterialTheme.typography.headlineLarge)
             
             Text(
                 text = description,
                 style = MaterialTheme.typography.bodyMedium,
                 textAlign = TextAlign.Center,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 16.dp)
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
-
             Image(
-                painter = painterResource(id = R.drawable.avatar_t),
+                painter = painterResource(id = R.drawable.avatar),
                 contentDescription = "Developer Avatar",
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
@@ -85,22 +85,21 @@ fun AboutBottomSheet(
                     .clip(RoundedCornerShape(32.dp))
                     .background(MaterialTheme.colorScheme.primary)
                     .combinedClickable(
-                        onClick = { },
+                        onClick = {},
                         onLongClick = {
-                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                            Toast.makeText(context, "Developer mode toggled", Toast.LENGTH_SHORT).show()
-                            onToggleDeveloperMode()
+                            HapticUtil.performClick(haptics)
+                            // onToggleDeveloperMode()
+                            Toast.makeText(context, "Nothing hidden here ( ´ ▽ ` )", Toast.LENGTH_SHORT).show()
                         }
                     )
             )
 
             Text(
-                text = "Developed by $developerName",
+                text = stringResource(R.string.developed_by_format, developerName),
                 style = MaterialTheme.typography.titleMedium,
                 textAlign = TextAlign.Center
             )
 
-            // Main Action Buttons
             FlowRow(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.Center,
@@ -108,74 +107,137 @@ fun AboutBottomSheet(
                 maxItemsInEachRow = 3
             ) {
                 ActionButton(
-                    text = "Website",
+                    text = stringResource(R.string.action_website),
                     iconRes = R.drawable.rounded_web_traffic_24,
-                    onClick = { openUrl(context, "https://www.sameerasw.com/canvas") }
+                    onClick = {
+                        HapticUtil.performClick(haptics)
+                        openUrl(context, "https://sameerasw.com")
+                    }
                 )
+
                 ActionButton(
-                    text = "GitHub",
-                    iconRes = R.drawable.github,
-                    onClick = { openUrl(context, "https://github.com/sameerasw/Canvas") }
+                    text = stringResource(R.string.action_view_on_github),
+                    iconRes = R.drawable.brand_github,
+                    onClick = {
+                        HapticUtil.performClick(haptics)
+                        openUrl(context, "https://github.com/sameerasw/canvas")
+                    }
                 )
+
                 ActionButton(
-                    text = "Telegram",
+                    text = stringResource(R.string.action_contact),
+                    iconRes = R.drawable.rounded_mail_24,
+                    onClick = {
+                        HapticUtil.performClick(haptics)
+                        val mailUri = "mailto:mail@sameerasw.com".toUri()
+                        val emailIntent = Intent(Intent.ACTION_SENDTO, mailUri).apply {
+                            putExtra(Intent.EXTRA_SUBJECT, "Hello from Canvas")
+                        }
+                        try {
+                            context.startActivity(
+                                Intent.createChooser(
+                                    emailIntent,
+                                    context.getString(R.string.send_email_chooser_title)
+                                )
+                            )
+                        } catch (e: ActivityNotFoundException) {
+                            Log.w("AboutBottomSheet", "No email app available", e)
+                            Toast.makeText(context, R.string.error_no_email_app, Toast.LENGTH_SHORT)
+                                .show()
+                        }
+                    },
+                    outlined = true
+                )
+
+                ActionButton(
+                    text = stringResource(R.string.action_telegram),
                     iconRes = R.drawable.brand_telegram,
-                    onClick = { openUrl(context, "https://t.me/tidwib") },
+                    onClick = {
+                        HapticUtil.performClick(haptics)
+                        openUrl(context, "https://t.me/tidwib")
+                    },
                     outlined = true
                 )
+
                 ActionButton(
-                    text = "Support",
+                    text = stringResource(R.string.action_support),
                     iconRes = R.drawable.rounded_heart_smile_24,
-                    onClick = { openUrl(context, "https://buymeacoffee.com/sameerasw") },
+                    onClick = {
+                        HapticUtil.performClick(haptics)
+                        openUrl(context, "https://buymeacoffee.com/sameerasw")
+                    },
                     outlined = true
-                )
-            }
-
-            
-            ContributorsCarousel()
-
-
-            Text(
-                text = "Other Apps",
-                style = MaterialTheme.typography.titleMedium,
-                textAlign = TextAlign.Center
-            )
-
-            FlowRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center,
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                maxItemsInEachRow = 3
-            ) {
-                OtherAppButton(
-                    text = "Essentials",
-                    iconRes = R.drawable.essentials_icon,
-                    onClick = { openUrl(context, "https://github.com/sameerasw/essentials") }
-                )
-                OtherAppButton(
-                    text = "AirSync",
-                    iconRes = R.drawable.rounded_devices_24,
-                    onClick = { openUrl(context, "https://play.google.com/store/apps/details?id=com.sameerasw.airsync") }
-                )
-                OtherAppButton(
-                    text = "ZenZero",
-                    iconRes = R.drawable.rounded_web_24,
-                    onClick = { openUrl(context, "https://sameerasw.com/zen") }
-                )
-                OtherAppButton(
-                    text = "Tasks",
-                    iconRes = R.drawable.rounded_task_alt_24,
-                    onClick = { openUrl(context, "https://github.com/sameerasw/tasks") }
                 )
             }
 
             Spacer(modifier = Modifier.height(8.dp))
-            
+
+            ContributorsCarousel()
+
+            Spacer(modifier = Modifier.height(8.dp))
+
             Text(
-                text = "With ❤️ from 🇱🇰",
-                style = MaterialTheme.typography.bodyMedium,
-                textAlign = TextAlign.Center,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                text = stringResource(R.string.label_other_apps),
+                style = MaterialTheme.typography.titleMedium,
+                textAlign = TextAlign.Center
+            )
+
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                maxItemsInEachRow = 3
+            ) {
+                OtherAppButton(
+                    text = stringResource(R.string.app_essentials),
+                    iconRes = R.drawable.essentials_icon,
+                    onClick = {
+                        HapticUtil.performClick(haptics)
+                        openUrl(context, "https://sameerasw.com/essentials")
+                    }
+                )
+
+                OtherAppButton(
+                    text = stringResource(R.string.app_airsync),
+                    iconRes = R.drawable.rounded_devices_24,
+                    onClick = {
+                        HapticUtil.performClick(haptics)
+                        openUrl(context, "https://sameerasw.com/airsync")
+                    }
+                )
+
+                OtherAppButton(
+                    text = stringResource(R.string.app_zenzero),
+                    iconRes = R.drawable.rounded_web_24,
+                    onClick = {
+                        HapticUtil.performClick(haptics)
+                        openUrl(context, "https://sameerasw.com/zen")
+                    }
+                )
+
+                OtherAppButton(
+                    text = stringResource(R.string.app_tasks),
+                    iconRes = R.drawable.rounded_task_alt_24,
+                    onClick = {
+                        HapticUtil.performClick(haptics)
+                        openUrl(context, "https://github.com/sameerasw/tasks")
+                    }
+                )
+
+                OtherAppButton(
+                    text = stringResource(R.string.app_zero),
+                    iconRes = R.drawable.outline_highlight_mouse_cursor_24,
+                    onClick = {
+                        HapticUtil.performClick(haptics)
+                        openUrl(context, "https://github.com/sameerasw/Browser")
+                    }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+            
+            MadebySameeraswCard(
+                modifier = Modifier.fillMaxWidth()
             )
         }
     }
@@ -192,7 +254,7 @@ private fun ActionButton(
         OutlinedButton(
             onClick = onClick,
             modifier = Modifier.padding(horizontal = 4.dp),
-            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
         ) {
             Icon(painterResource(id = iconRes), contentDescription = null, modifier = Modifier.size(18.dp))
             Spacer(modifier = Modifier.width(8.dp))
@@ -202,7 +264,7 @@ private fun ActionButton(
         Button(
             onClick = onClick,
             modifier = Modifier.padding(horizontal = 4.dp),
-            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
         ) {
             Icon(painterResource(id = iconRes), contentDescription = null, modifier = Modifier.size(18.dp))
             Spacer(modifier = Modifier.width(8.dp))
@@ -220,7 +282,7 @@ private fun OtherAppButton(
     OutlinedButton(
         onClick = onClick,
         modifier = Modifier.padding(horizontal = 4.dp),
-        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
     ) {
         Icon(painterResource(id = iconRes), contentDescription = null, modifier = Modifier.size(18.dp))
         Spacer(modifier = Modifier.width(8.dp))

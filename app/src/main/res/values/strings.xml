@@ -1,3 +1,22 @@
 <resources>
     <string name="app_name">Canvas</string>
+    <string name="app_developer_name">Sameera Wijerathna</string>
+    <string name="app_description">It\'s a canvas for your imagination.</string>
+    <string name="developed_by_format">Developed by %1$s\nwith ❤\uFE0F from \uD83C\uDDF1\uD83C\uDDF0</string>
+    <string name="action_website">Website</string>
+    <string name="action_view_on_github">View on GitHub</string>
+    <string name="action_contact">Contact</string>
+    <string name="action_telegram">Telegram</string>
+    <string name="action_support">Support</string>
+    <string name="label_other_apps">Other Apps</string>
+    <string name="app_airsync">AirSync</string>
+    <string name="app_zenzero">ZenZero</string>
+    <string name="app_canvas">Canvas</string>
+    <string name="app_tasks">Tasks</string>
+    <string name="app_zero">Zero</string>
+    <string name="app_essentials">Essentials</string>
+    <string name="send_email_chooser_title">Send email using...</string>
+    <string name="error_no_email_app">No email app installed</string>
+    <string name="promo_reddit_title">r/MadebySameerasw</string>
+    <string name="promo_reddit_desc">A place to discuss about Essentials and other apps by me. Join the community and contribute to the projects, get help and learn a thing or two. ( ´ \u25BD ` )\uff89</string>
 </resources>
