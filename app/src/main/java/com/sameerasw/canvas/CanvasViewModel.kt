@@ -16,6 +16,8 @@ import android.os.PowerManager
 import com.sameerasw.canvas.util.DeviceUtils
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 
@@ -65,19 +67,28 @@ class CanvasViewModel(application: Application) : AndroidViewModel(application) 
     val isBlurEnabled = _isBlurEnabled.asStateFlow()
 
     private var powerSaveReceiver: BroadcastReceiver? = null
+    private var lastSavedJson: String? = null
 
     init {
-        load()
         updateBlurState()
         registerPowerSaveReceiver()
         
-        // Monitor settings changes (simplistic approach for this app)
+        // Monitor settings changes
         viewModelScope.launch {
             while (true) {
                 delay(1000)
                 updateBlurState()
             }
         }
+
+        // Reactively observe database changes
+        repository.canvasFlow
+            .onEach { json ->
+                if (json != null && json != lastSavedJson) {
+                    applyJsonToState(json)
+                }
+            }
+            .launchIn(viewModelScope)
     }
 
     private fun pushUndoSnapshot() {
@@ -200,33 +211,49 @@ class CanvasViewModel(application: Application) : AndroidViewModel(application) 
         _canRedo.value = redoStack.isNotEmpty()
     }
 
+    fun importCanvasState(model: CanvasModel) {
+        pushUndoSnapshot()
+        _strokes.value = model.strokes
+        _texts.value = model.texts
+        _backgroundImageUri.value = model.backgroundImageUri
+        save()
+    }
+
     fun save() {
         viewModelScope.launch {
             val model = CanvasModel(_strokes.value, _texts.value, _backgroundImageUri.value)
             val json = gson.toJson(model)
-            repository.saveCanvas(json)
+            if (json != lastSavedJson) {
+                lastSavedJson = json
+                repository.saveCanvas(json)
+            }
         }
     }
 
-    private fun load() {
+    fun refresh() {
         viewModelScope.launch {
             val json = repository.loadCanvas()
-            if (json != null) {
-                try {
-                    val type = object : TypeToken<CanvasModel>() {}.type
-                    val model: CanvasModel = gson.fromJson(json, type)
-                    _strokes.value = model.strokes
-                    _texts.value = model.texts
-                    _backgroundImageUri.value = model.backgroundImageUri
-                } catch (_: Exception) {
-                    try {
-                        val type = object : TypeToken<List<DrawStroke>>() {}.type
-                        val list: List<DrawStroke> = gson.fromJson(json, type)
-                        _strokes.value = list
-                    } catch (_: Exception) {
-                        // ignore
-                    }
-                }
+            if (json != null && json != lastSavedJson) {
+                applyJsonToState(json)
+            }
+        }
+    }
+
+    private fun applyJsonToState(json: String) {
+        try {
+            lastSavedJson = json
+            val type = object : TypeToken<CanvasModel>() {}.type
+            val model: CanvasModel = gson.fromJson(json, type)
+            _strokes.value = model.strokes
+            _texts.value = model.texts
+            _backgroundImageUri.value = model.backgroundImageUri
+        } catch (e: Exception) {
+            try {
+                val type = object : TypeToken<List<DrawStroke>>() {}.type
+                val list: List<DrawStroke> = gson.fromJson(json, type)
+                _strokes.value = list
+            } catch (_: Exception) {
+                // ignore
             }
         }
     }

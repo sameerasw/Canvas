@@ -183,6 +183,11 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        viewModel.refresh()
+    }
+
     override fun onPause() {
         super.onPause()
         viewModel.save()

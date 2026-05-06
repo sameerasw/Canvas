@@ -5,8 +5,13 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 
+import kotlinx.coroutines.flow.Flow
+
 @Dao
 interface CanvasDao {
+    @Query("SELECT * FROM canvas WHERE id = 1 LIMIT 1")
+    fun getCanvasFlow(): Flow<CanvasEntity?>
+
     @Query("SELECT * FROM canvas WHERE id = 1 LIMIT 1")
     suspend fun getCanvas(): CanvasEntity?
 

@@ -33,8 +33,26 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.platform.LocalHapticFeedback
+import com.sameerasw.canvas.util.CanvasSharingHelper
+import androidx.compose.ui.res.stringResource
+import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import com.sameerasw.canvas.ui.theme.CanvasTheme
 import com.sameerasw.canvas.ui.theme.CanvasThemeWithMode
+import com.sameerasw.canvas.utils.HapticUtil
 
 class SettingsActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -67,6 +85,7 @@ fun SettingsScreen(onThemeModeChange: (SettingsRepository.ThemeMode) -> Unit = {
     var canvasBackground by remember { mutableStateOf(SettingsRepository.getCanvasBackground()) }
     var themeMode by remember { mutableStateOf(SettingsRepository.getThemeMode()) }
     val context = LocalContext.current
+    val haptics = LocalHapticFeedback.current
 
     Column(
         modifier = Modifier
@@ -245,6 +264,120 @@ fun SettingsScreen(onThemeModeChange: (SettingsRepository.ThemeMode) -> Unit = {
                     useBlur = new
                     SettingsRepository.setUseBlur(new)
                 })
+            }
+
+            // Share Canvas setting
+            val canvasViewModel: CanvasViewModel = viewModel()
+            val scope = rememberCoroutineScope()
+            var showImportWarning by remember { mutableStateOf(false) }
+            var pendingImportUri by remember { mutableStateOf<android.net.Uri?>(null) }
+
+            val exportLauncher = rememberLauncherForActivityResult(
+                contract = ActivityResultContracts.CreateDocument("application/octet-stream"),
+                onResult = { uri ->
+                    uri?.let {
+                        scope.launch {
+                            val strokes = canvasViewModel.strokes.value
+                            val texts = canvasViewModel.texts.value
+                            val bgUri = canvasViewModel.backgroundImageUri.value
+                            val model = CanvasModel(strokes, texts, bgUri)
+                            CanvasSharingHelper.exportCanvas(context, model, it)
+                            HapticUtil.performClick(haptics)
+                            android.widget.Toast.makeText(context, "Canvas exported!", android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+            )
+
+            val importLauncher = rememberLauncherForActivityResult(
+                contract = ActivityResultContracts.OpenDocument(),
+                onResult = { uri ->
+                    uri?.let {
+                        pendingImportUri = it
+                        showImportWarning = true
+                    }
+                }
+            )
+
+            if (showImportWarning) {
+                AlertDialog(
+                    onDismissRequest = { showImportWarning = false },
+                    title = { Text(stringResource(R.string.import_warning_title)) },
+                    text = { Text(stringResource(R.string.import_warning_message)) },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                pendingImportUri?.let { uri ->
+                                    scope.launch {
+                                        val model = CanvasSharingHelper.importCanvas(context, uri)
+                                        if (model != null) {
+                                            canvasViewModel.importCanvasState(model)
+                                            android.widget.Toast.makeText(context, "Canvas imported!", android.widget.Toast.LENGTH_SHORT).show()
+                                        } else {
+                                            android.widget.Toast.makeText(context, "Failed to import canvas", android.widget.Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                }
+                                showImportWarning = false
+                            }
+                        ) {
+                            Text(stringResource(R.string.action_import))
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showImportWarning = false }) {
+                            Text("Cancel")
+                        }
+                    }
+                )
+            }
+
+            Text(
+                text = stringResource(R.string.label_share_canvas),
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(top = 12.dp)
+            )
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(
+                    onClick = {
+                        val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+                        exportLauncher.launch("canvas-$timeStamp.canvas")
+                    },
+                    modifier = Modifier.weight(1f),
+                    shape = MaterialTheme.shapes.medium
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.rounded_ios_share_24),
+                        contentDescription = null,
+                        modifier = Modifier.padding(end = 8.dp)
+                    )
+                    Text(stringResource(R.string.action_export))
+                }
+
+                Button(
+                    onClick = {
+                        importLauncher.launch(arrayOf("application/octet-stream", "*/*"))
+                    },
+                    modifier = Modifier.weight(1f),
+                    shape = MaterialTheme.shapes.medium,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.rounded_download_24),
+                        contentDescription = null,
+                        modifier = Modifier.padding(end = 8.dp)
+                    )
+                    Text(stringResource(R.string.action_import))
+                }
             }
         }
     }

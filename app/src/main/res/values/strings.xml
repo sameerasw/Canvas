@@ -2,7 +2,7 @@
     <string name="app_name">Canvas</string>
     <string name="app_developer_name">Sameera Wijerathna</string>
     <string name="app_description">It\'s a canvas for your imagination.</string>
-    <string name="developed_by_format">Developed by %1$s\nwith ❤\uFE0F from \uD83C\uDDF1\uD83C\uDDF0</string>
+    <string name="developed_by_format">Developed by %1$s\nwith ❤️ from 🇱🇰</string>
     <string name="action_website">Website</string>
     <string name="action_view_on_github">View on GitHub</string>
     <string name="action_contact">Contact</string>
@@ -19,4 +19,10 @@
     <string name="error_no_email_app">No email app installed</string>
     <string name="promo_reddit_title">r/MadebySameerasw</string>
     <string name="promo_reddit_desc">A place to discuss about Essentials and other apps by me. Join the community and contribute to the projects, get help and learn a thing or two. ( ´ \u25BD ` )\uff89</string>
+    
+    <string name="label_share_canvas">Share Canvas</string>
+    <string name="action_import">Import</string>
+    <string name="action_export">Export</string>
+    <string name="import_warning_title">Overwrite Canvas?</string>
+    <string name="import_warning_message">This will replace your entire current canvas with the imported data. This action cannot be undone. Are you sure you want to continue?</string>
 </resources>
